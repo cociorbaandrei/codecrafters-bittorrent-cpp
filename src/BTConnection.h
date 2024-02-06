@@ -46,4 +46,5 @@ private:
 
 	std::shared_ptr<uvw::tcp_handle> m_tcp_handle;
 	json m_decoded_json;
+	std::unordered_map<int, std::unordered_map<int, std::vector<uint8_t>>> m_pending_pieces;
 };

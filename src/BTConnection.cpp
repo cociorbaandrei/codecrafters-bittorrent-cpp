@@ -78,7 +78,7 @@ void BTConnection::handleHandshake()
 			std::cout << "Peer ID: ";
 			for (int i = 0; i < msg.peerId.size(); i++)
 			{
-				printf("%x", msg.peerId[i]);
+				printf("%02x", msg.peerId[i]);
 			}
 			std::cout << "\n";
 			handshakeReceived = true;
@@ -138,11 +138,28 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 	case BTMessageType::Choke:
 		//handleChoke(message.payload);
 		break;
+	case BTMessageType::Piece:
+	{
+		std::cout << "Received BTMessageType::Piece\n";
+		// Piece index (network byte order)
+
+		auto pieceIndex = ntohl (*reinterpret_cast<const uint32_t*>(message.payload.data()));
+		auto begin = ntohl(*reinterpret_cast<const uint32_t*>(message.payload.data() + 4));
+		std::vector<uint8_t> piece_data(message.payload.begin() + 8, message.payload.end());
+		std::cout << "Piece Index: " << pieceIndex << " Begin: " << begin << "Size: " << piece_data.size() << "\n";
+
+		break;
+	}
 	case BTMessageType::Unchoke:
 	{
 		std::cout << "Received BTMessageType::Unchoke\n";
 		std::int32_t piece_length;
+		std::string pieces;
+
 		m_decoded_json["info"].at("piece length").get_to(piece_length);
+		m_decoded_json["info"].at("pieces").get_to(pieces);
+		uint32_t no_pieces = pieces.length() / 20;
+
 		const int blockSize = 16 * 1024; // 16 KiB
 		const int pieceIndex = 0;
 		const int pieceLength = piece_length;
@@ -172,6 +189,8 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 			// Send the message
 			m_tcp_handle->write(reinterpret_cast<char*>(requestMessage.data()), requestMessage.size());
 		}
+		
+
 		break;
 	}
 	case BTMessageType::Bitfield:
