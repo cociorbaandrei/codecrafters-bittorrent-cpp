@@ -23,6 +23,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(uvw)
 
 set(SOURCE_FILES src/Main.cpp src/lib/nlohmann/json.hpp)
-add_executable(bittorrent ${SOURCE_FILES})
+add_executable(bittorrent ${SOURCE_FILES} "src/BTConnection.cpp" "src/BitTorrentMessage.cpp")
 target_link_libraries(bittorrent PRIVATE uv_a uvw::uvw) # Link against libuv
 target_include_directories(bittorrent PUBLIC ${uvw_SOURCE_DIR}/src) # Include uvw headers
