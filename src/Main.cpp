@@ -861,6 +861,7 @@ int main(int argc, char* argv[]) {
 			});
 
 
+		bittorent_session.piece_index_to_download = atoi(argv[5]);
 		bittorent_session.request_download_name = std::string(argv[3]);
 		loop->run();
 	}

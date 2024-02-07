@@ -53,7 +53,8 @@ public:
 	void onDataReceived(const std::vector<uint8_t>& data);
 	void requestDownload(size_t piece_index);
 
-	std::string request_download_name =  "";
+	std::string request_download_name =  ""; 
+	int32_t piece_index_to_download = 0;
 private:
 	void handleHandshake();
 	void handleOtherMessages();

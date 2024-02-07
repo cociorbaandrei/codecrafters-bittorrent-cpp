@@ -164,7 +164,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		std::string pieces;
 
 		if (request_download_name != "")
-			requestDownload(0);
+			requestDownload(piece_index_to_download);
 
 		break;
 	}
