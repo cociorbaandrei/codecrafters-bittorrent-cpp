@@ -855,7 +855,7 @@ int main(int argc, char* argv[]) {
 		BTConnection bittorent_session(tcpClient, decoded_value);
 		// Handle the data event
 		tcpClient->on<uvw::data_event>([&bittorent_session](const uvw::data_event& event, uvw::tcp_handle& tcp_handle) {
-			std::cout << "Data received: " << std::string(event.data.get(), event.length) << " size: " << event.length << std::endl;
+			//std::cout << "Data received: " << std::string(event.data.get(), event.length) << " size: " << event.length << std::endl;
 			std::vector<uint8_t> data(event.data.get(), event.data.get() + event.length);
 			bittorent_session.onDataReceived(data);
 			});

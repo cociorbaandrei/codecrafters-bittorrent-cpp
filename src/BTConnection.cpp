@@ -133,7 +133,7 @@ BTMessage BTConnection::parseMessage()
 }
 
 void BTConnection::dispatchMessage(const BTMessage& message) {
-	prettyPrintHex(message.payload);
+	//prettyPrintHex(message.payload);
 	switch (message.type) {
 	case BTMessageType::Choke:
 		//handleChoke(message.payload);
