@@ -463,7 +463,7 @@ void dev_test() {
 
 	bittorent_session.piece_index_to_download = atoi("0");
 	bittorent_session.request_download_name = "piece.gif";
-
+	bittorent_session.downloadFullFile = true;
 	// Create a timer handle
 	auto timer = loop->resource<uvw::timer_handle>();
 
@@ -499,7 +499,7 @@ static std::string base64_encode(const std::string& in) {
 }
 
 int main(int argc, char* argv[]) {
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
 	
 	//for (int i = 1; i < argc; i++)
 	//{

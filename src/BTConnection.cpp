@@ -134,6 +134,7 @@ bool BTConnection::canParseMessage()
 
 BTMessage BTConnection::parseMessage()
 {
+	//prettyPrintHex(buffer);
 	uint32_t length = ntohl(*reinterpret_cast<uint32_t*>(buffer.data()));
 	BTMessageType type = static_cast<BTMessageType>(buffer[4]);
 	std::vector<uint8_t> payload(buffer.begin() + 5, buffer.begin() + 4 + length);
@@ -148,6 +149,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 	//prettyPrintHex(message.payload);
 	switch (message.type) {
 	case BTMessageType::Choke:
+		spdlog::debug("Received BTMessageType::Choke");
 		//handleChoke(message.payload);
 		break;
 	case BTMessageType::Piece:
@@ -167,7 +169,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		spdlog::debug("Piece Index: {:0}, Begin: {:1}, Size: {:2}", pieceIndex, begin, piece_data.size());
 
 		onBlockReceived(pieceIndex, begin / blockSize, piece_data);
-		requestDownload(piece_index_to_download, begin / blockSize + 1);
+		//requestDownload(piece_index_to_download, begin / blockSize + 1);
 		break;
 	}
 	case BTMessageType::Unchoke:
@@ -237,10 +239,10 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 	spdlog::debug("Last piece size: {:0}", lastPieceSize);
 	spdlog::debug("Size of the last block in the last piece: {:0} bytes", sizeOfLastBlockInLastPiece);
 	const size_t pipelineWindowSize = 5; // Example window size
-	//for (int block = 0; block < this->pieces[piece_index].blocks.size(); ++block) {
-		int block = blockIndex;
+	for (int block = 0; block < this->pieces[piece_index].blocks.size(); ++block) {
+		//int block = blockIndex;
 		int begin = block * blockSize;
-		int length = this->pieces.size() - 1 == piece_index && this->pieces[piece_index].blocks.size() - 1 == blockIndex ? sizeOfLastBlockInLastPiece : ((block < fullBlocks) ? blockSize : lastBlockSize);
+		int length = this->pieces.size() - 1 == piece_index && this->pieces[piece_index].blocks.size() - 1 == block ? sizeOfLastBlockInLastPiece : ((block < fullBlocks) ? blockSize : lastBlockSize);
 
 		// Construct the message
 		std::array<unsigned char, 17> requestMessage; // 4 bytes for length prefix, 1 for message ID, 12 for payload
@@ -260,7 +262,7 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 
 		// Send the message
 		m_tcp_handle->write(reinterpret_cast<char*>(requestMessage.data()), requestMessage.size());
-	//}
+	}
 	
 }
 
@@ -333,8 +335,10 @@ void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const s
 	if (piece.isComplete()) {
 		spdlog::info("Piece {:0} downloaded to {:1}", pieceIndex, request_download_name);
 		writePieceToFile(pieceIndex, piece);
-		if(pieceIndex == this->pieces.size() - 1 && blockIndex == this->pieces[pieceIndex].blocks.size() - 1)
+		if(pieceIndex == this->pieces.size() - 1 && blockIndex == this->pieces[pieceIndex].blocks.size() - 1){
 			m_tcp_handle->close();
+			return;
+		}
 		//m_tcp_handle->close();
 		if(downloadFullFile){
 			piece_index_to_download += 1;
