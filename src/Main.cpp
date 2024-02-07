@@ -358,7 +358,7 @@ std::vector<unsigned char> convertToVector(const std::unique_ptr<char[]>& data, 
 void dev_test() {
 
 	int n = 0;
-	std::string file_name = "sample.torrent";
+	std::string file_name = "congratulations.gif.torrent";
 	std::ifstream torrent_file(file_name);
 	std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
 	json decoded_value = decode_bencoded_value(str, n);
@@ -409,7 +409,8 @@ void dev_test() {
 
 	auto tcpClient = loop->resource<uvw::tcp_handle>();
 
-	tcpClient->connect(std::get<0>(peers_response.peers[0]), std::get<1>(peers_response.peers[0]));
+
+	tcpClient->connect(std::get<0>(peers_response.peers[1]), std::get<1>(peers_response.peers[1]));
 
 	tcpClient->on<uvw::connect_event>([&tcpClient, hash](const uvw::connect_event& connect_event, uvw::tcp_handle& tcp_handle) {
 		std::cout << "Connected to server." << std::endl;
@@ -440,13 +441,28 @@ void dev_test() {
 	BTConnection bittorent_session(tcpClient, decoded_value);
 	// Handle the data event
 	tcpClient->on<uvw::data_event>([&bittorent_session](const uvw::data_event& event, uvw::tcp_handle& tcp_handle) {
-		std::cout << "Data received: " << std::string(event.data.get(), event.length) << " size: " << event.length << std::endl;
+		//std::cout << "Data received: " << std::string(event.data.get(), event.length) << " size: " << event.length << std::endl;
 		std::vector<uint8_t> data(event.data.get(), event.data.get() + event.length);
 		bittorent_session.onDataReceived(data);
 		});
 
-	bittorent_session.piece_index_to_download = atoi("0");
-	bittorent_session.request_download_name = "test-piece-0";
+	bittorent_session.piece_index_to_download = atoi("2");
+	bittorent_session.request_download_name = "piece-2";
+
+	// Create a timer handle
+	auto timer = loop->resource<uvw::timer_handle>();
+
+	// Start the timer with a very long repeat time (e.g., 24 hours in milliseconds)
+	// The callback does nothing, but it keeps the loop "busy"
+	timer->start(uvw::timer_handle::time{ 0 }, uvw::timer_handle::time{ 10000 });
+	timer->on<uvw::timer_event>([&tcpClient, &bittorent_session](const auto&, auto&) {
+		// No operation; this is just to keep the loop alive
+		std::cout << "trying read from server." << std::endl;
+		//bittorent_session.requestDownload(bittorent_session.piece_index_to_download, 0);
+		tcpClient->read();
+		});
+
+
 	loop->run();
 }
 static std::string base64_encode(const std::string& in) {
@@ -584,7 +600,7 @@ int main(int argc, char* argv[]) {
 
 //	loop->run();
 	//dev_test();
-//	return 0;
+	//return 0;
 
 	if (argc < 2) {
 		std::cerr << "Usage: " << argv[0] << " decode <encoded_value>" << std::endl;

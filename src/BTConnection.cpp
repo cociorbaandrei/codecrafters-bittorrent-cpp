@@ -192,6 +192,7 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 	std::int32_t piece_length;
 	m_decoded_json["info"].at("pieces").get_to(pieces);
 	m_decoded_json["info"].at("piece length").get_to(piece_length);
+	auto totalLength = m_decoded_json["info"]["length"].template get<std::uint32_t>();
 	uint32_t no_pieces = pieces.length() / 20;
 
 	const int blockSize = 16 * 1024; // 16 KiB
@@ -200,10 +201,26 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 	const int fullBlocks = pieceLength / blockSize; // Number of full blocks
 	const int lastBlockSize = pieceLength % blockSize; // Size of the last block, if any
 	const int totalBlocks = fullBlocks + (lastBlockSize > 0 ? 1 : 0); // Total blocks including the last partial block, if any
+	size_t totalPieces = totalLength / piece_length + (totalLength % piece_length > 0 ? 1 : 0);
+	std::cout << "Number of blocks: " << totalBlocks << "\n";
+	size_t lastPieceSize = totalLength % pieceLength;
+	if (lastPieceSize == 0) { // If the total size is a perfect multiple of the piece size
+		lastPieceSize = pieceLength; // The last piece is a full piece
+	}
+	size_t numberOfBlocksInLastPiece = lastPieceSize / blockSize;
+	if (lastPieceSize % blockSize != 0) { // If there's a remainder
+		numberOfBlocksInLastPiece += 1; // There's an additional, partially-filled block
+	}
+	size_t sizeOfLastBlockInLastPiece = lastPieceSize % blockSize;
+	if (sizeOfLastBlockInLastPiece == 0 && lastPieceSize != 0) {
+		sizeOfLastBlockInLastPiece = blockSize; // The last block is a full block if no remainder
+	}
+	std::cout << "Last piece size: " << lastPieceSize << " bytes\n";
+	std::cout << "Size of the last block in the last piece: " << sizeOfLastBlockInLastPiece << " bytes\n";
 	//for (int block = 0; block < totalBlocks; ++block) {
 		int block = blockIndex;
 		int begin = block * blockSize;
-		int length = (block < fullBlocks) ? blockSize : lastBlockSize;
+		int length = this->pieces[piece_index].blocks.size() -1 == blockIndex ? sizeOfLastBlockInLastPiece : ((block < fullBlocks) ? blockSize : lastBlockSize);
 
 		// Construct the message
 		std::array<unsigned char, 17> requestMessage; // 4 bytes for length prefix, 1 for message ID, 12 for payload
@@ -238,13 +255,37 @@ void BTConnection::initializePieces(json metadata)
 	const int blockSize = 16 * 1024; // 16 KiB
 	const int pieceLength = piece_length;
 	const int fullBlocks = pieceLength / blockSize; // Number of full blocks
-	const int lastBlockSize = pieceLength % blockSize; // Size of the last block, if any
-	const int totalBlocks = fullBlocks + (lastBlockSize > 0 ? 1 : 0); // Total blocks including the last partial block, if any
+
 
 	auto totalLength = metadata["info"]["length"].template get<std::uint32_t>();
-
+	const int lastBlockSize = pieceLength % blockSize; // Size of the last block, if any
+	const int totalBlocks = fullBlocks + (lastBlockSize > 0 ? 1 : 0); // Total blocks including the last partial block, if any
 	size_t totalPieces = totalLength / piece_length + (totalLength % piece_length > 0 ? 1 : 0);
+	std::cout << "Number of blocks: " << totalBlocks << "\n";
+	size_t lastPieceSize = totalLength % pieceLength;
+	if (lastPieceSize == 0) { // If the total size is a perfect multiple of the piece size
+		lastPieceSize = pieceLength; // The last piece is a full piece
+	}
+	size_t numberOfBlocksInLastPiece = lastPieceSize / blockSize;
+	if (lastPieceSize % blockSize != 0) { // If there's a remainder
+		numberOfBlocksInLastPiece += 1; // There's an additional, partially-filled block
+	}
+	size_t sizeOfLastBlockInLastPiece = lastPieceSize % blockSize;
+	if (sizeOfLastBlockInLastPiece == 0 && lastPieceSize != 0) {
+		sizeOfLastBlockInLastPiece = blockSize; // The last block is a full block if no remainder
+	}
+	std::cout << "Last piece size: " << lastPieceSize << " bytes\n";
+	std::cout << "Size of the last block in the last piece: " << sizeOfLastBlockInLastPiece << " bytes\n";
 	for (size_t i = 0; i < totalPieces; ++i) {
+		if (i == totalPieces - 1) {
+			Piece piece;
+			size_t blocksInPiece = numberOfBlocksInLastPiece;
+			for (size_t j = 0; j < blocksInPiece; ++j) {
+				piece.blocks.push_back(Block{});
+			}
+			pieces.push_back(std::move(piece));
+			continue;
+		}
 		Piece piece;
 		size_t blocksInPiece = totalBlocks;
 		for (size_t j = 0; j < blocksInPiece; ++j) {
@@ -267,7 +308,7 @@ void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const s
 	// Check if the piece is complete
 	for (int i = 0; i < piece.blocks.size(); i++) {
 		if (!piece.blocks[i].received) {
-			requestDownload(pieceIndex, i);
+			//requestDownload(pieceIndex, i);
 		}
 	}
 	if (piece.isComplete()) {
