@@ -22,11 +22,13 @@
 #include <cstring>
 #include <iostream> 
 #include <string_view>
-
+#include "spdlog/spdlog.h"
+#include "spdlog/fmt/bin_to_hex.h"
 void prettyPrintHex(const std::vector<uint8_t>& data, size_t bytesPerLine) {
 	std::stringstream hexStream;
 	size_t byteCount = 0;
-	std::cout << "======================Hexdump===========================\n";
+	//std::cout << "======================Hexdump===========================\n";
+	spdlog::debug("======================Hexdump===========================\n");  
 	for (auto byte : data) {
 		// Print byte in hex format
 		hexStream << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte) << " ";
@@ -43,8 +45,10 @@ void prettyPrintHex(const std::vector<uint8_t>& data, size_t bytesPerLine) {
 		hexStream << std::endl;
 	}
 
-	std::cout << hexStream.str();
-	std::cout << "======================Hexdump===========================\n";
+	spdlog::debug("{0}", hexStream.str());  
+	//std::cout << hexStream.str();
+	//std::cout << "======================Hexdump===========================\n";
+	spdlog::debug("======================Hexdump===========================");  
 }
 
 BTConnection::BTConnection(std::shared_ptr<uvw::tcp_handle> tcp_handle, json decoded_json)
@@ -75,6 +79,7 @@ void BTConnection::handleHandshake()
 		try {
 			std::vector<uint8_t> payload(buffer.begin() , buffer.begin() + 68);
 			BitTorrentMessage msg = BitTorrentMessage::deserialize(payload);
+			//spdlog::debug("Peer ID: {:xsp}", spdlog::to_hex(msg.peerId));  
 			std::cout << "Peer ID: ";
 			for (int i = 0; i < msg.peerId.size(); i++)
 			{
@@ -85,6 +90,7 @@ void BTConnection::handleHandshake()
 		}
 		catch (const std::exception& e) {
 			std::cerr << "Error deserializing message: " << e.what() << std::endl;
+			//spdlog::error("Error deserializing message: {0}", e.what());
 		}
 		// Remove the handshake from the buffer
 		buffer.erase(buffer.begin(), buffer.begin() + 68);
@@ -114,7 +120,8 @@ bool BTConnection::canParseMessage()
 	uint32_t length = ntohl(*reinterpret_cast<uint32_t*>(buffer.data())); // Assuming network byte order
 	if (length == 0) {
 		// It's a keep-alive message
-		std::cout << "Keep-alive message received." << std::endl;
+		//std::cout << "Keep-alive message received." << std::endl;
+		spdlog::debug("Keep-alive message received.");
 		return false;
 	}
 	return buffer.size() >= length + 4; // Check if we have the whole message
@@ -140,7 +147,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		break;
 	case BTMessageType::Piece:
 	{
-		std::cout << "Received BTMessageType::Piece\n";
+		spdlog::debug("Received BTMessageType::Piece");
 		// Piece index (network byte order)
 
 		auto pieceIndex = ntohl (*reinterpret_cast<const uint32_t*>(message.payload.data()));
@@ -152,16 +159,16 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		const int blockSize = 16 * 1024; // 16 KiB
 		const int pieceLength = piece_length;
 		const int fullBlocks = pieceLength / blockSize; // Number of full blocks
-		
-		std::cout << "Piece Index: " << pieceIndex << " Begin: " << begin << "Size: " << piece_data.size() << "\n";
+		spdlog::debug("Piece Index: {:0}, Begin: {:1}, Size: {:2}", pieceIndex, begin, piece_data.size());
+		//std::cout << "Piece Index: " << pieceIndex << " Begin: " << begin << "Size: " << piece_data.size() << "\n";
 		onBlockReceived(pieceIndex, begin / blockSize, piece_data);
 		requestDownload(piece_index_to_download, begin / blockSize + 1);
 		break;
 	}
 	case BTMessageType::Unchoke:
 	{
-		std::cout << "Received BTMessageType::Unchoke\n";
-
+		//std::cout << "Received BTMessageType::Unchoke\n";
+		spdlog::debug("Received BTMessageType::Unchoke");
 		std::string pieces;
 
 		if (request_download_name != "") {
@@ -173,21 +180,20 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 	}
 	case BTMessageType::Bitfield:
 	{
-		std::cout << "Received BTMessageType::Bitfield\n";
+		spdlog::debug("Received BTMessageType::Bitfield");
 		char data[] = "\x00\x00\x00\x01\x02";
 		m_tcp_handle->write(data, 5);
 		break;
 	}
 	default:
-		std::cerr << "Unknown message type received: " << static_cast<int>(message.type) << std::endl;
+		spdlog::error("Unknown message type received: {:0}", static_cast<int>(message.type));
+		//std::cerr << "Unknown message type received: " << static_cast<int>(message.type) << std::endl;
 		break;
 	}
 }
 
 void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 {
-
-	
 	std::string pieces;
 	std::int32_t piece_length;
 	m_decoded_json["info"].at("pieces").get_to(pieces);
@@ -202,7 +208,7 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 	const int lastBlockSize = pieceLength % blockSize; // Size of the last block, if any
 	const int totalBlocks = fullBlocks + (lastBlockSize > 0 ? 1 : 0); // Total blocks including the last partial block, if any
 	size_t totalPieces = totalLength / piece_length + (totalLength % piece_length > 0 ? 1 : 0);
-	std::cout << "Number of blocks: " << totalBlocks << "\n";
+
 	size_t lastPieceSize = totalLength % pieceLength;
 	if (lastPieceSize == 0) { // If the total size is a perfect multiple of the piece size
 		lastPieceSize = pieceLength; // The last piece is a full piece
@@ -215,8 +221,15 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 	if (sizeOfLastBlockInLastPiece == 0 && lastPieceSize != 0) {
 		sizeOfLastBlockInLastPiece = blockSize; // The last block is a full block if no remainder
 	}
-	std::cout << "Last piece size: " << lastPieceSize << " bytes\n";
-	std::cout << "Size of the last block in the last piece: " << sizeOfLastBlockInLastPiece << " bytes\n";
+
+	spdlog::debug("Number of blocks: {:0}", totalBlocks);
+	spdlog::debug("Last piece size: {:0}", lastPieceSize);
+	spdlog::debug("Size of the last block in the last piece: {:0} bytes", sizeOfLastBlockInLastPiece);
+
+
+	//std::cout << "Number of blocks: " << totalBlocks << "\n";
+	//std::cout << "Last piece size: " << lastPieceSize << " bytes\n";
+	//std::cout << "Size of the last block in the last piece: " << sizeOfLastBlockInLastPiece << " bytes\n";
 	//for (int block = 0; block < totalBlocks; ++block) {
 		int block = blockIndex;
 		int begin = block * blockSize;
@@ -261,7 +274,7 @@ void BTConnection::initializePieces(json metadata)
 	const int lastBlockSize = pieceLength % blockSize; // Size of the last block, if any
 	const int totalBlocks = fullBlocks + (lastBlockSize > 0 ? 1 : 0); // Total blocks including the last partial block, if any
 	size_t totalPieces = totalLength / piece_length + (totalLength % piece_length > 0 ? 1 : 0);
-	std::cout << "Number of blocks: " << totalBlocks << "\n";
+
 	size_t lastPieceSize = totalLength % pieceLength;
 	if (lastPieceSize == 0) { // If the total size is a perfect multiple of the piece size
 		lastPieceSize = pieceLength; // The last piece is a full piece
@@ -274,14 +287,23 @@ void BTConnection::initializePieces(json metadata)
 	if (sizeOfLastBlockInLastPiece == 0 && lastPieceSize != 0) {
 		sizeOfLastBlockInLastPiece = blockSize; // The last block is a full block if no remainder
 	}
-	std::cout << "Last piece size: " << lastPieceSize << " bytes\n";
-	std::cout << "Size of the last block in the last piece: " << sizeOfLastBlockInLastPiece << " bytes\n";
+
+	spdlog::debug("Number of blocks: {:0}", totalBlocks);
+	spdlog::debug("Last piece size: {:0}", lastPieceSize);
+	spdlog::debug("Size of the last block in the last piece: {:0} bytes", sizeOfLastBlockInLastPiece);
+
+	// std::cout << "Number of blocks: " << totalBlocks << "\n";
+	// std::cout << "Last piece size: " << lastPieceSize << " bytes\n";
+	// std::cout << "Size of the last block in the last piece: " << sizeOfLastBlockInLastPiece << " bytes\n";
+
 	for (size_t i = 0; i < totalPieces; ++i) {
 		if (i == totalPieces - 1) {
 			Piece piece;
 			size_t blocksInPiece = numberOfBlocksInLastPiece;
 			for (size_t j = 0; j < blocksInPiece; ++j) {
-				piece.blocks.push_back(Block{});
+				piece.blocks.push_back(Block{
+					.expectedSize = blocksInPiece - 1 == j ? sizeOfLastBlockInLastPiece : blockSize
+				});
 			}
 			pieces.push_back(std::move(piece));
 			continue;
@@ -289,7 +311,9 @@ void BTConnection::initializePieces(json metadata)
 		Piece piece;
 		size_t blocksInPiece = totalBlocks;
 		for (size_t j = 0; j < blocksInPiece; ++j) {
-			piece.blocks.push_back(Block{});
+			piece.blocks.push_back(Block{
+				.expectedSize = blockSize
+			});
 		}
 		pieces.push_back(std::move(piece));
 	}
@@ -312,7 +336,8 @@ void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const s
 		}
 	}
 	if (piece.isComplete()) {
-		std::cout << "Piece " << pieceIndex  <<" downloaded to " << request_download_name << ".\n";
+		spdlog::debug("Piece {:0} downloaded to {:1}", pieceIndex, request_download_name);
+		//std::cout << "Piece " << pieceIndex  <<" downloaded to " << request_download_name << ".\n";
 		writePieceToFile(pieceIndex, piece);
 		//requestDownload(pieceIndex + 1);
 	}
@@ -326,7 +351,8 @@ void BTConnection::writePieceToFile(size_t pieceIndex, const Piece& piece)
 
 	std::ofstream file(request_download_name, std::ios::binary | std::ios::app |  std::ios::out);
 	if (!file.is_open()) {
-		std::cerr << "error opening: " << request_download_name << "\n";
+		spdlog::error("error opening: ", request_download_name);
+		//std::cerr << "error opening: " << request_download_name << "\n";
 		return;
 	}
 

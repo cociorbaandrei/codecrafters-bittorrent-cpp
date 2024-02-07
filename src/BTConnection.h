@@ -35,6 +35,7 @@ namespace uvw {
 struct Block {
 	std::vector<uint8_t> data;
 	bool received = false;
+	size_t expectedSize = 0;
 };
 
 struct Piece {

@@ -3,6 +3,7 @@ project(bittorrent-starter-cpp)
 set(CMAKE_CXX_STANDARD 20) # Enable the C++23 standard
 
 find_package(libuv QUIET) # Attempt to find libuv
+
 if(NOT libuv_FOUND)
   include(FetchContent)
   FetchContent_Declare(
@@ -22,7 +23,21 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(uvw)
 
+FetchContent_Declare(
+  fmtlib
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG        8.0.1 # Specify a tag or commit hash here for reproducibility
+)
+
+FetchContent_MakeAvailable(fmtlib)
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG v1.9.2 # It's a good practice to pin a specific version for reproducibility
+)
+
+FetchContent_MakeAvailable(spdlog)
 set(SOURCE_FILES src/Main.cpp src/lib/nlohmann/json.hpp)
 add_executable(bittorrent ${SOURCE_FILES} "src/BTConnection.cpp" "src/BitTorrentMessage.cpp")
-target_link_libraries(bittorrent PRIVATE uv_a uvw::uvw) # Link against libuv
-target_include_directories(bittorrent PUBLIC ${uvw_SOURCE_DIR}/src) # Include uvw headers
+target_link_libraries(bittorrent PRIVATE uv_a uvw::uvw fmt spdlog::spdlog) # Link against libuv
+target_include_directories(bittorrent PUBLIC ${uvw_SOURCE_DIR}/src ${spdlog_SOURCE_DIR}/src) # Include uvw headers

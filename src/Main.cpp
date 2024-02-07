@@ -23,6 +23,10 @@
 #include "BTConnection.h"
 #include <chrono>
 #include <thread>
+#include "spdlog/spdlog.h"
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/basic_file_sink.h>
+
 #pragma comment(lib, "ws2_32.lib")
 using json = nlohmann::json;
 
@@ -329,15 +333,18 @@ namespace ns {
 			std::string str_response = std::string{ response.body.begin(), response.body.end() };
 			json r = decode_bencoded_value(str_response, n);
 			auto peers = get_peers(r["peers"], true);
+			spdlog::debug("Peers IPs:");
 			for (const auto& [ip, port, peer_id] : peers)
 			{
+				spdlog::debug("{0}:{1}", ip, port);
 				std::cout << ip << ":" << port << "\n";
 			}
 			return { 10, peers };
 		}
 		catch (const std::exception& e)
 		{
-			std::cerr << "Request failed, error: " << e.what() << '\n';
+			spdlog::error("Request failed, error: {0}",  e.what());
+			//std::cerr << "Request failed, error: " << e.what() << '\n';
 		}
 		return {  };
 	}
@@ -370,9 +377,13 @@ void dev_test() {
 	SHA1 checksum;
 	checksum.update(bencoded_info);
 	const std::string hash = checksum.final();
-	std::cout << "Info Hash: " << hash << std::endl;
-	std::cout << "Piece Length: " << info_struct.piece_length << std::endl;
-	std::cout << "Piece Hashes:" << info_struct.piece_length << std::endl;
+	spdlog::debug("Info Hash: {0}", hash);  
+	spdlog::debug("Piece Length:  {0}", info_struct.piece_length);  
+	spdlog::debug("Piece Hashes: ");  
+
+	// std::cout << "Info Hash: " << hash << std::endl;
+	// std::cout << "Piece Length: " << info_struct.piece_length << std::endl;
+	// std::cout << "Piece Hashes:" << info_struct.piece_length << std::endl;
 
 	for (std::size_t i = 0; i < info_struct.pieces.length(); i += 20) {
 		std::string piece = info_struct.pieces.substr(i, 20);
@@ -380,7 +391,8 @@ void dev_test() {
 		for (unsigned char byte : piece) {
 			ss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
 		}
-		std::cout << ss.str() << std::endl;
+		spdlog::debug("{0}", ss.str());  
+		//std::cout << ss.str() << std::endl;
 	}
 
 	std::random_device dev;
@@ -391,8 +403,8 @@ void dev_test() {
 	{
 		peer_id += std::to_string(dist6(dev));
 	}
-	std::cout << "Peer Id: " << peer_id << std::endl;
-
+	//std::cout << "Peer Id: " << peer_id << std::endl;
+	spdlog::debug("Peer Id:  {0}", peer_id);  
 	ns::Torrent torrent;
 	torrent.info_hash = hash;
 	torrent.announce = decoded_value["announce"].template get<std::string>();
@@ -413,8 +425,7 @@ void dev_test() {
 	tcpClient->connect(std::get<0>(peers_response.peers[1]), std::get<1>(peers_response.peers[1]));
 
 	tcpClient->on<uvw::connect_event>([&tcpClient, hash](const uvw::connect_event& connect_event, uvw::tcp_handle& tcp_handle) {
-		std::cout << "Connected to server." << std::endl;
-
+		spdlog::debug("Connected to server.");  
 		auto byte_repr = HexToBytes(hash);
 		std::array<uint8_t, 20> infoHash;
 
@@ -429,14 +440,14 @@ void dev_test() {
 
 	// Handle the write event
 	tcpClient->on<uvw::write_event>([&tcpClient](const uvw::write_event& connect_event, uvw::tcp_handle& tcp_handle) {
-		std::cout << "Message sent." << std::endl;
+		spdlog::debug("Message sent.");  
 		tcpClient->read();
-		});
+	});
 
 	// Handle errors
 	tcpClient->on<uvw::error_event>([](const uvw::error_event& err, uvw::tcp_handle&) {
-		std::cerr << "Error: " << err.what() << std::endl;
-		});
+		spdlog::error("Error: {0}", err.what());  
+	});
 
 	BTConnection bittorent_session(tcpClient, decoded_value);
 	// Handle the data event
@@ -444,7 +455,7 @@ void dev_test() {
 		//std::cout << "Data received: " << std::string(event.data.get(), event.length) << " size: " << event.length << std::endl;
 		std::vector<uint8_t> data(event.data.get(), event.data.get() + event.length);
 		bittorent_session.onDataReceived(data);
-		});
+	});
 
 	bittorent_session.piece_index_to_download = atoi("9");
 	bittorent_session.request_download_name = "piece-9";
@@ -457,10 +468,10 @@ void dev_test() {
 	timer->start(uvw::timer_handle::time{ 0 }, uvw::timer_handle::time{ 10000 });
 	timer->on<uvw::timer_event>([&tcpClient, &bittorent_session](const auto&, auto&) {
 		// No operation; this is just to keep the loop alive
-		std::cout << "trying read from server." << std::endl;
+		spdlog::debug("Trying read from server.");  
 		//bittorent_session.requestDownload(bittorent_session.piece_index_to_download, 0);
 		tcpClient->read();
-		});
+	});
 
 
 	loop->run();
@@ -484,7 +495,8 @@ static std::string base64_encode(const std::string& in) {
 }
 
 int main(int argc, char* argv[]) {
-
+    spdlog::set_level(spdlog::level::debug);
+	
 	//for (int i = 1; i < argc; i++)
 	//{
 	//	std::cout << argv[i] << " "  ;
