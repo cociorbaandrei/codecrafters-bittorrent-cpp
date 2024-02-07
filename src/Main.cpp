@@ -465,13 +465,13 @@ void dev_test() {
 
 	// Start the timer with a very long repeat time (e.g., 24 hours in milliseconds)
 	// The callback does nothing, but it keeps the loop "busy"
-	timer->start(uvw::timer_handle::time{ 0 }, uvw::timer_handle::time{ 10000 });
-	timer->on<uvw::timer_event>([&tcpClient, &bittorent_session](const auto&, auto&) {
-		// No operation; this is just to keep the loop alive
-		spdlog::debug("Trying read from server.");  
-		//bittorent_session.requestDownload(bittorent_session.piece_index_to_download, 0);
-		tcpClient->read();
-	});
+	// timer->start(uvw::timer_handle::time{ 0 }, uvw::timer_handle::time{ 10000 });
+	// timer->on<uvw::timer_event>([&tcpClient, &bittorent_session](const auto&, auto&) {
+	// 	// No operation; this is just to keep the loop alive
+	// 	spdlog::debug("Trying read from server.");  
+	// 	//bittorent_session.requestDownload(bittorent_session.piece_index_to_download, 0);
+	// 	tcpClient->read();
+	// });
 
 
 	loop->run();

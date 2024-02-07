@@ -160,7 +160,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		const int pieceLength = piece_length;
 		const int fullBlocks = pieceLength / blockSize; // Number of full blocks
 		spdlog::debug("Piece Index: {:0}, Begin: {:1}, Size: {:2}", pieceIndex, begin, piece_data.size());
-		//std::cout << "Piece Index: " << pieceIndex << " Begin: " << begin << "Size: " << piece_data.size() << "\n";
+
 		onBlockReceived(pieceIndex, begin / blockSize, piece_data);
 		requestDownload(piece_index_to_download, begin / blockSize + 1);
 		break;
@@ -226,10 +226,6 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 	spdlog::debug("Last piece size: {:0}", lastPieceSize);
 	spdlog::debug("Size of the last block in the last piece: {:0} bytes", sizeOfLastBlockInLastPiece);
 
-
-	//std::cout << "Number of blocks: " << totalBlocks << "\n";
-	//std::cout << "Last piece size: " << lastPieceSize << " bytes\n";
-	//std::cout << "Size of the last block in the last piece: " << sizeOfLastBlockInLastPiece << " bytes\n";
 	//for (int block = 0; block < totalBlocks; ++block) {
 		int block = blockIndex;
 		int begin = block * blockSize;
@@ -289,6 +285,7 @@ void BTConnection::initializePieces(json metadata)
 	}
 
 	spdlog::debug("Number of blocks: {:0}", totalBlocks);
+	spdlog::debug("Number of blocks in last piece: {:0}", numberOfBlocksInLastPiece);
 	spdlog::debug("Last piece size: {:0}", lastPieceSize);
 	spdlog::debug("Size of the last block in the last piece: {:0} bytes", sizeOfLastBlockInLastPiece);
 
@@ -297,22 +294,22 @@ void BTConnection::initializePieces(json metadata)
 	// std::cout << "Size of the last block in the last piece: " << sizeOfLastBlockInLastPiece << " bytes\n";
 
 	for (size_t i = 0; i < totalPieces; ++i) {
-		if (i == totalPieces - 1) {
-			Piece piece;
-			size_t blocksInPiece = numberOfBlocksInLastPiece;
-			for (size_t j = 0; j < blocksInPiece; ++j) {
-				piece.blocks.push_back(Block{
-					.expectedSize = blocksInPiece - 1 == j ? sizeOfLastBlockInLastPiece : blockSize
-				});
-			}
-			pieces.push_back(std::move(piece));
-			continue;
-		}
+		// if (i == totalPieces - 1) {
+		// 	Piece piece;
+		// 	size_t blocksInPiece = numberOfBlocksInLastPiece;
+		// 	for (size_t j = 0; j < blocksInPiece; ++j) {
+		// 		piece.blocks.push_back(Block{
+		// 			.expectedSize = blocksInPiece - 1 == j ? sizeOfLastBlockInLastPiece : blockSize
+		// 		});
+		// 	}
+		// 	pieces.push_back(std::move(piece));
+		// 	continue;
+		// }
 		Piece piece;
-		size_t blocksInPiece = totalBlocks;
+		size_t blocksInPiece = i == totalPieces - 1 ? numberOfBlocksInLastPiece : totalBlocks;
 		for (size_t j = 0; j < blocksInPiece; ++j) {
 			piece.blocks.push_back(Block{
-				.expectedSize = blockSize
+				.expectedSize = blocksInPiece - 1 == j ? sizeOfLastBlockInLastPiece : blockSize
 			});
 		}
 		pieces.push_back(std::move(piece));
