@@ -30,12 +30,14 @@ struct BTMessage {
 };
 namespace uvw {
 	class tcp_handle;
+	class loop;
 }
 
 struct Block {
 	std::vector<uint8_t> data;
 	bool received = false;
 	size_t expectedSize = 0;
+	bool requested = false; // Add this to track request status
 };
 
 struct Piece {
@@ -50,7 +52,7 @@ class BTConnection {
 public:
 	bool handshakeReceived = false;
 	std::vector<uint8_t> buffer;
-	BTConnection(std::shared_ptr<uvw::tcp_handle> tcp_handle, json decoded_json);
+	BTConnection(std::shared_ptr<uvw::loop> loop, std::shared_ptr<uvw::tcp_handle> tcp_handle, json decoded_json);
 	void onDataReceived(const std::vector<uint8_t>& data);
 	void requestDownload(size_t piece_index,size_t blockIndex);
 
@@ -63,6 +65,7 @@ private:
 	BTMessage parseMessage();
 	void dispatchMessage(const BTMessage& message);
 	std::shared_ptr<uvw::tcp_handle> m_tcp_handle;
+	std::shared_ptr<uvw::loop> m_loop;
 	json m_decoded_json;
 
 	std::vector<Piece> pieces;

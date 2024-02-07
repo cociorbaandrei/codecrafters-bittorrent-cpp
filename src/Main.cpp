@@ -435,13 +435,17 @@ void dev_test() {
 		auto data = msg.serialize();
 
 		tcpClient->write(&data[0], data.size());
+		tcpClient->read();
+	});
 
-		});
+    // Set a close event callback
+    tcpClient->on<uvw::close_event>([](const uvw::close_event&, uvw::tcp_handle&) {
+		spdlog::debug("TCP client handle closed.");  
+    });
 
 	// Handle the write event
 	tcpClient->on<uvw::write_event>([&tcpClient](const uvw::write_event& connect_event, uvw::tcp_handle& tcp_handle) {
-		spdlog::debug("Message sent.");  
-		tcpClient->read();
+		spdlog::debug("Message sent."); 
 	});
 
 	// Handle errors
@@ -449,7 +453,7 @@ void dev_test() {
 		spdlog::error("Error: {0}", err.what());  
 	});
 
-	BTConnection bittorent_session(tcpClient, decoded_value);
+	BTConnection bittorent_session(loop, tcpClient, decoded_value);
 	// Handle the data event
 	tcpClient->on<uvw::data_event>([&bittorent_session](const uvw::data_event& event, uvw::tcp_handle& tcp_handle) {
 		//std::cout << "Data received: " << std::string(event.data.get(), event.length) << " size: " << event.length << std::endl;
@@ -782,17 +786,18 @@ int main(int argc, char* argv[]) {
 			auto data = msg.serialize();
 
 			tcpClient->write(&data[0], data.size());
-			});
+			tcpClient->read();
+		});
 
 		// Handle the write event
 		tcpClient->on<uvw::write_event>([&tcpClient](const uvw::write_event& connect_event, uvw::tcp_handle& tcp_handle) {
-			tcpClient->read();
+
 		});
 
 		// Handle errors
 		tcpClient->on<uvw::error_event>([](const uvw::error_event& err, uvw::tcp_handle&) {
 			std::cerr << "Error: " << err.what() << std::endl;
-			});
+		});
 		// Handle the data event
 		tcpClient->on<uvw::data_event>([](const uvw::data_event& event, uvw::tcp_handle& tcp_handle) {
 			auto d = std::string(event.data.get(), event.length > 68 ? 68 : event.length);
@@ -895,14 +900,19 @@ int main(int argc, char* argv[]) {
 		tcpClient->on<uvw::write_event>([&tcpClient](const uvw::write_event& connect_event, uvw::tcp_handle& tcp_handle) {
 			std::cout << "Message sent." << std::endl;
 
-			});
+		});
+
+		// Set a close event callback
+		tcpClient->on<uvw::close_event>([](const uvw::close_event&, uvw::tcp_handle&) {
+			spdlog::debug("TCP client handle closed.");  
+		});
 
 		// Handle errors
 		tcpClient->on<uvw::error_event>([](const uvw::error_event& err, uvw::tcp_handle&) {
 			std::cerr << "Error: " << err.what() << std::endl;
 			});
 
-		BTConnection bittorent_session(tcpClient, decoded_value);
+		BTConnection bittorent_session(loop, tcpClient, decoded_value);
 		// Handle the data event
 		tcpClient->on<uvw::data_event>([&bittorent_session](const uvw::data_event& event, uvw::tcp_handle& tcp_handle) {
 			//std::cout << "Data received: " << std::string(event.data.get(), event.length) << " size: " << event.length << std::endl;

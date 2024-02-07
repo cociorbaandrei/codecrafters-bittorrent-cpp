@@ -24,6 +24,7 @@
 #include <string_view>
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/bin_to_hex.h"
+#include <algorithm>
 void prettyPrintHex(const std::vector<uint8_t>& data, size_t bytesPerLine) {
 	std::stringstream hexStream;
 	size_t byteCount = 0;
@@ -51,8 +52,12 @@ void prettyPrintHex(const std::vector<uint8_t>& data, size_t bytesPerLine) {
 	spdlog::debug("======================Hexdump===========================");  
 }
 
-BTConnection::BTConnection(std::shared_ptr<uvw::tcp_handle> tcp_handle, json decoded_json)
-	: m_tcp_handle(tcp_handle)
+BTConnection::BTConnection(
+	std::shared_ptr<uvw::loop> loop, 
+	std::shared_ptr<uvw::tcp_handle> tcp_handle, 
+	json decoded_json)
+	: m_loop(loop)
+	, m_tcp_handle(tcp_handle)
 	, m_decoded_json(decoded_json)
 {
 }
@@ -162,7 +167,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		spdlog::debug("Piece Index: {:0}, Begin: {:1}, Size: {:2}", pieceIndex, begin, piece_data.size());
 
 		onBlockReceived(pieceIndex, begin / blockSize, piece_data);
-		//requestDownload(piece_index_to_download, begin / blockSize + 1);
+		requestDownload(piece_index_to_download, begin / blockSize + 1);
 		break;
 	}
 	case BTMessageType::Unchoke:
@@ -187,6 +192,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 	}
 	default:
 		spdlog::error("Unknown message type received: {:0}", static_cast<int>(message.type));
+		prettyPrintHex(message.payload);
 		//std::cerr << "Unknown message type received: " << static_cast<int>(message.type) << std::endl;
 		break;
 	}
@@ -194,6 +200,10 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 
 void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 {
+	if(blockIndex > this->pieces[piece_index].blocks.size())
+		return;
+	if(this->pieces[piece_index].blocks[blockIndex].received)
+		return;
 	std::string pieces;
 	std::int32_t piece_length;
 	m_decoded_json["info"].at("pieces").get_to(pieces);
@@ -225,9 +235,9 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 	spdlog::debug("Number of blocks: {:0}", totalBlocks);
 	spdlog::debug("Last piece size: {:0}", lastPieceSize);
 	spdlog::debug("Size of the last block in the last piece: {:0} bytes", sizeOfLastBlockInLastPiece);
-
-	for (int block = 0; block < this->pieces[piece_index].blocks.size(); ++block) {
-		//int block = block;
+	const size_t pipelineWindowSize = 5; // Example window size
+	//for (int block = 0; block < this->pieces[piece_index].blocks.size(); ++block) {
+		int block = blockIndex;
 		int begin = block * blockSize;
 		int length = this->pieces.size() - 1 == piece_index && this->pieces[piece_index].blocks.size() - 1 == blockIndex ? sizeOfLastBlockInLastPiece : ((block < fullBlocks) ? blockSize : lastBlockSize);
 
@@ -249,7 +259,8 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 
 		// Send the message
 		m_tcp_handle->write(reinterpret_cast<char*>(requestMessage.data()), requestMessage.size());
-	}
+	//}
+	
 }
 
 void BTConnection::initializePieces(json metadata)
@@ -311,15 +322,18 @@ void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const s
 	block.data = data;
 	block.received = true;
 
-	// Check if the piece is complete
-	for (int i = 0; i < piece.blocks.size(); i++) {
-		if (!piece.blocks[i].received) {
-			//requestDownload(pieceIndex, i);
-		}
-	}
+	// // Check if the piece is complete
+	// for (int i = 0; i < std::min(piece.blocks.size(), (size_t)5); i++) {
+	// 	if (!piece.blocks[i].received) {
+	// 		requestDownload(pieceIndex, i);
+	// 	}
+	// }
+
 	if (piece.isComplete()) {
 		spdlog::debug("Piece {:0} downloaded to {:1}", pieceIndex, request_download_name);
 		writePieceToFile(pieceIndex, piece);
+
+		m_tcp_handle->close();
 		//requestDownload(pieceIndex + 1);
 	}
 }
