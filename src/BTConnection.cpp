@@ -260,7 +260,7 @@ void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const s
 	// Check if the piece is complete
 	if (piece.isComplete()) {
 		writePieceToFile(pieceIndex, piece);
-		requestDownload(pieceIndex + 1);
+		//requestDownload(pieceIndex + 1);
 	}
 }
 
