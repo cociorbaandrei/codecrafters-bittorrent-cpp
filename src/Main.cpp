@@ -451,11 +451,11 @@ void dev_test() {
 }
 int main(int argc, char* argv[]) {
 
-	for (int i = 1; i < argc; i++)
-	{
-		std::cout << argv[i] << " "  ;
-	}
-	std::cout << "\n";
+	//for (int i = 1; i < argc; i++)
+	//{
+	//	std::cout << argv[i] << " "  ;
+	//}
+	//std::cout << "\n";
 	//   int n = 0;
 	//   std::ifstream torrent_file("sample.torrent");
 	   //std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
