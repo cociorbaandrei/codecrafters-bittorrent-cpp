@@ -146,50 +146,25 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		auto pieceIndex = ntohl (*reinterpret_cast<const uint32_t*>(message.payload.data()));
 		auto begin = ntohl(*reinterpret_cast<const uint32_t*>(message.payload.data() + 4));
 		std::vector<uint8_t> piece_data(message.payload.begin() + 8, message.payload.end());
+		
+		std::int32_t piece_length;
+		m_decoded_json["info"].at("piece length").get_to(piece_length);
+		const int blockSize = 16 * 1024; // 16 KiB
+		const int pieceLength = piece_length;
+		const int fullBlocks = pieceLength / blockSize; // Number of full blocks
+		
 		std::cout << "Piece Index: " << pieceIndex << " Begin: " << begin << "Size: " << piece_data.size() << "\n";
-
+		onBlockReceived(pieceIndex, begin / blockSize, piece_data);
 		break;
 	}
 	case BTMessageType::Unchoke:
 	{
 		std::cout << "Received BTMessageType::Unchoke\n";
-		std::int32_t piece_length;
+
 		std::string pieces;
 
-		m_decoded_json["info"].at("piece length").get_to(piece_length);
-		m_decoded_json["info"].at("pieces").get_to(pieces);
-		uint32_t no_pieces = pieces.length() / 20;
-
-		const int blockSize = 16 * 1024; // 16 KiB
-		const int pieceIndex = 0;
-		const int pieceLength = piece_length;
-		const int fullBlocks = pieceLength / blockSize; // Number of full blocks
-		const int lastBlockSize = pieceLength % blockSize; // Size of the last block, if any
-		const int totalBlocks = fullBlocks + (lastBlockSize > 0 ? 1 : 0); // Total blocks including the last partial block, if any
-		for (int block = 0; block < totalBlocks; ++block) {
-			int begin = block * blockSize;
-			int length = (block < fullBlocks) ? blockSize : lastBlockSize;
-
-			// Construct the message
-			std::array<unsigned char, 17> requestMessage; // 4 bytes for length prefix, 1 for message ID, 12 for payload
-			// Length prefix (13, since payload is 12 bytes long)
-			requestMessage[0] = 0;
-			requestMessage[1] = 0;
-			requestMessage[2] = 0;
-			requestMessage[3] = 13;
-			// Message ID (6)
-			requestMessage[4] = 6;
-			// Piece index (network byte order)
-			*reinterpret_cast<uint32_t*>(requestMessage.data() + 5) = htonl(pieceIndex);
-			// Begin (network byte order)
-			*reinterpret_cast<uint32_t*>(requestMessage.data() + 9) = htonl(begin);
-			// Length (network byte order)
-			*reinterpret_cast<uint32_t*>(requestMessage.data() + 13) = htonl(length);
-
-			// Send the message
-			m_tcp_handle->write(reinterpret_cast<char*>(requestMessage.data()), requestMessage.size());
-		}
-		
+		if (request_download_name != "")
+			requestDownload(0);
 
 		break;
 	}
@@ -203,5 +178,106 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 	default:
 		std::cerr << "Unknown message type received: " << static_cast<int>(message.type) << std::endl;
 		break;
+	}
+}
+
+void BTConnection::requestDownload(size_t piece_index)
+{
+
+	initializePieces(m_decoded_json);
+	std::string pieces;
+	std::int32_t piece_length;
+	m_decoded_json["info"].at("pieces").get_to(pieces);
+	m_decoded_json["info"].at("piece length").get_to(piece_length);
+	uint32_t no_pieces = pieces.length() / 20;
+
+	const int blockSize = 16 * 1024; // 16 KiB
+	const int pieceIndex = piece_index;
+	const int pieceLength = piece_length;
+	const int fullBlocks = pieceLength / blockSize; // Number of full blocks
+	const int lastBlockSize = pieceLength % blockSize; // Size of the last block, if any
+	const int totalBlocks = fullBlocks + (lastBlockSize > 0 ? 1 : 0); // Total blocks including the last partial block, if any
+	for (int block = 0; block < totalBlocks; ++block) {
+		int begin = block * blockSize;
+		int length = (block < fullBlocks) ? blockSize : lastBlockSize;
+
+		// Construct the message
+		std::array<unsigned char, 17> requestMessage; // 4 bytes for length prefix, 1 for message ID, 12 for payload
+		// Length prefix (13, since payload is 12 bytes long)
+		requestMessage[0] = 0;
+		requestMessage[1] = 0;
+		requestMessage[2] = 0;
+		requestMessage[3] = 13;
+		// Message ID (6)
+		requestMessage[4] = 6;
+		// Piece index (network byte order)
+		*reinterpret_cast<uint32_t*>(requestMessage.data() + 5) = htonl(pieceIndex);
+		// Begin (network byte order)
+		*reinterpret_cast<uint32_t*>(requestMessage.data() + 9) = htonl(begin);
+		// Length (network byte order)
+		*reinterpret_cast<uint32_t*>(requestMessage.data() + 13) = htonl(length);
+
+		// Send the message
+		m_tcp_handle->write(reinterpret_cast<char*>(requestMessage.data()), requestMessage.size());
+	}
+}
+
+void BTConnection::initializePieces(json metadata)
+{
+	std::int32_t piece_length;
+	std::string pieces_hex;
+
+	m_decoded_json["info"].at("piece length").get_to(piece_length);
+	m_decoded_json["info"].at("pieces").get_to(pieces_hex);
+	uint32_t no_pieces = pieces_hex.length() / 20;
+
+	const int blockSize = 16 * 1024; // 16 KiB
+	const int pieceLength = piece_length;
+	const int fullBlocks = pieceLength / blockSize; // Number of full blocks
+	const int lastBlockSize = pieceLength % blockSize; // Size of the last block, if any
+	const int totalBlocks = fullBlocks + (lastBlockSize > 0 ? 1 : 0); // Total blocks including the last partial block, if any
+
+	auto totalLength = metadata["info"]["length"].template get<std::uint32_t>();
+
+	size_t totalPieces = totalLength / piece_length + (totalLength % piece_length > 0 ? 1 : 0);
+	for (size_t i = 0; i < totalPieces; ++i) {
+		Piece piece;
+		size_t blocksInPiece = totalBlocks;
+		for (size_t j = 0; j < blocksInPiece; ++j) {
+			piece.blocks.push_back(Block{});
+		}
+		pieces.push_back(std::move(piece));
+	}
+}
+
+void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const std::vector<uint8_t>& data)
+{
+	Piece& piece = pieces[pieceIndex];
+	Block& block = piece.blocks[blockIndex];
+	block.data = data;
+	block.received = true;
+
+	// Check if the piece is complete
+	if (piece.isComplete()) {
+		writePieceToFile(pieceIndex, piece);
+		requestDownload(pieceIndex + 1);
+	}
+}
+
+void BTConnection::writePieceToFile(size_t pieceIndex, const Piece& piece)
+{
+	std::int32_t piece_length;
+
+	m_decoded_json["info"].at("piece length").get_to(piece_length);
+
+	std::ofstream file(request_download_name, std::ios::binary | std::ios::app |  std::ios::out);
+	if (!file.is_open()) {
+		// Handle error
+		return;
+	}
+
+	file.seekp(pieceIndex * piece_length);
+	for (const auto& block : piece.blocks) {
+		file.write(reinterpret_cast<const char*>(block.data.data()), block.data.size());
 	}
 }

@@ -21,6 +21,8 @@
 #include <string_view>
 #include "BitTorrentMessage.h"
 #include "BTConnection.h"
+#include <chrono>
+#include <thread>
 #pragma comment(lib, "ws2_32.lib")
 using json = nlohmann::json;
 
@@ -443,6 +445,8 @@ void dev_test() {
 		bittorent_session.onDataReceived(data);
 		});
 
+
+	bittorent_session.request_download_name = "test-piece-0";
 	loop->run();
 }
 int main(int argc, char* argv[]) {
@@ -760,6 +764,99 @@ int main(int argc, char* argv[]) {
 			}
 			});
 
+		loop->run();
+	}
+	else if (command == "download_piece") {
+		int n = 0;
+		std::string file_name = argv[2];
+		std::ifstream torrent_file(file_name);
+		std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
+		json decoded_value = decode_bencoded_value(str, n);
+		std::cout << "Tracker URL: " << decoded_value["announce"].template get<std::string>() << std::endl;
+		std::cout << "Length: " << decoded_value["info"]["length"].dump() << std::endl;
+		ns::Info info_struct;
+		ns::from_json(decoded_value["info"], info_struct);
+		std::string bencoded_info = ns::to_bencode(decoded_value["info"]);
+		SHA1 checksum;
+		checksum.update(bencoded_info);
+		const std::string hash = checksum.final();
+		std::cout << "Info Hash: " << hash << std::endl;
+		std::cout << "Piece Length: " << info_struct.piece_length << std::endl;
+		std::cout << "Piece Hashes:" << info_struct.piece_length << std::endl;
+
+		for (std::size_t i = 0; i < info_struct.pieces.length(); i += 20) {
+			std::string piece = info_struct.pieces.substr(i, 20);
+			std::stringstream ss;
+			for (unsigned char byte : piece) {
+				ss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+			}
+			std::cout << ss.str() << std::endl;
+		}
+
+		std::random_device dev;
+		std::mt19937 rng(dev());
+		std::uniform_int_distribution<std::mt19937::result_type> dist6(0, 9); // distribution in range [1, 6]
+		std::string peer_id;
+		for (int i = 0; i < 20; i++)
+		{
+			peer_id += std::to_string(dist6(dev));
+		}
+		std::cout << "Peer Id: " << peer_id << std::endl;
+
+		ns::Torrent torrent;
+		torrent.info_hash = hash;
+		torrent.announce = decoded_value["announce"].template get<std::string>();
+		torrent.info = info_struct;
+		torrent.peer_id = peer_id;
+		torrent.port = 6881;
+		torrent.uploaded = 0;
+		torrent.downloaded = 0;
+		torrent.left = torrent.info.length;
+		torrent.compact = 1;
+		auto peers_response = discover_peers(&torrent);
+
+		auto loop = uvw::loop::get_default();
+
+		auto tcpClient = loop->resource<uvw::tcp_handle>();
+
+		tcpClient->connect(std::get<0>(peers_response.peers[0]), std::get<1>(peers_response.peers[0]));
+
+		tcpClient->on<uvw::connect_event>([&tcpClient, hash](const uvw::connect_event& connect_event, uvw::tcp_handle& tcp_handle) {
+			std::cout << "Connected to server." << std::endl;
+
+			auto byte_repr = HexToBytes(hash);
+			std::array<uint8_t, 20> infoHash;
+
+			std::copy(std::begin(byte_repr), std::end(byte_repr), infoHash.begin());
+			BitTorrentMessage msg(infoHash);
+			// Send "hello" to the server
+			auto data = msg.serialize();
+
+			tcpClient->write(&data[0], data.size());
+
+			});
+
+		// Handle the write event
+		tcpClient->on<uvw::write_event>([&tcpClient](const uvw::write_event& connect_event, uvw::tcp_handle& tcp_handle) {
+			std::cout << "Message sent." << std::endl;
+			tcpClient->read();
+			});
+
+		// Handle errors
+		tcpClient->on<uvw::error_event>([](const uvw::error_event& err, uvw::tcp_handle&) {
+			std::cerr << "Error: " << err.what() << std::endl;
+			});
+
+		BTConnection bittorent_session(tcpClient, decoded_value);
+		// Handle the data event
+		tcpClient->on<uvw::data_event>([&bittorent_session](const uvw::data_event& event, uvw::tcp_handle& tcp_handle) {
+			std::cout << "Data received: " << std::string(event.data.get(), event.length) << " size: " << event.length << std::endl;
+			std::vector<uint8_t> data(event.data.get(), event.data.get() + event.length);
+			bittorent_session.onDataReceived(data);
+			});
+
+
+		bittorent_session.request_download_name = std::string(argv[3]);
 		loop->run();
 	}
 	else {

@@ -31,20 +31,46 @@ struct BTMessage {
 namespace uvw {
 	class tcp_handle;
 }
+
+struct Block {
+	std::vector<uint8_t> data;
+	bool received = false;
+};
+
+struct Piece {
+	std::vector<Block> blocks;
+	uint32_t currentBlock;
+	bool isComplete() const {
+		return std::all_of(std::begin(blocks), std::end(blocks), [](const Block& block) {return block.received; });
+	}
+};
+
 class BTConnection {
 public:
 	bool handshakeReceived = false;
 	std::vector<uint8_t> buffer;
 	BTConnection(std::shared_ptr<uvw::tcp_handle> tcp_handle, json decoded_json);
 	void onDataReceived(const std::vector<uint8_t>& data);
+	void requestDownload(size_t piece_index);
+
+	std::string request_download_name =  "";
 private:
 	void handleHandshake();
 	void handleOtherMessages();
 	bool canParseMessage();
 	BTMessage parseMessage();
 	void dispatchMessage(const BTMessage& message);
-
 	std::shared_ptr<uvw::tcp_handle> m_tcp_handle;
 	json m_decoded_json;
-	std::unordered_map<int, std::unordered_map<int, std::vector<uint8_t>>> m_pending_pieces;
+
+	std::vector<Piece> pieces;
+
+	void initializePieces(json metadata);
+	void onBlockReceived(size_t pieceIndex, size_t blockIndex, const std::vector<uint8_t>& data);
+	void writePieceToFile(size_t pieceIndex, const Piece& piece);
+	bool isDownloadComplete() {
+		return std::all_of(pieces.begin(), pieces.end(), [](const Piece& piece) { return piece.isComplete(); });
+	}
+
+
 };
