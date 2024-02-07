@@ -200,6 +200,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 
 void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 {
+	spdlog::info("Requesting Piece {:0} block {:1}", piece_index, blockIndex);
 	if(blockIndex > this->pieces[piece_index].blocks.size())
 		return;
 	if(this->pieces[piece_index].blocks[blockIndex].received)
@@ -330,11 +331,17 @@ void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const s
 	// }
 
 	if (piece.isComplete()) {
-		spdlog::debug("Piece {:0} downloaded to {:1}", pieceIndex, request_download_name);
+		spdlog::info("Piece {:0} downloaded to {:1}", pieceIndex, request_download_name);
 		writePieceToFile(pieceIndex, piece);
-
-		m_tcp_handle->close();
-		//requestDownload(pieceIndex + 1);
+		if(pieceIndex == this->pieces.size() - 1 && blockIndex == this->pieces[pieceIndex].blocks.size() - 1)
+			m_tcp_handle->close();
+		//m_tcp_handle->close();
+		if(downloadFullFile){
+			piece_index_to_download += 1;
+			requestDownload(piece_index_to_download, 0);
+		}else{
+			m_tcp_handle->close();
+		}
 	}
 }
 

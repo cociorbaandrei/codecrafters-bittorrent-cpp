@@ -58,6 +58,7 @@ public:
 
 	std::string request_download_name =  ""; 
 	int32_t piece_index_to_download = 0;
+	bool downloadFullFile = false;
 private:
 	void handleHandshake();
 	void handleOtherMessages();
