@@ -220,7 +220,7 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 	//for (int block = 0; block < totalBlocks; ++block) {
 		int block = blockIndex;
 		int begin = block * blockSize;
-		int length = this->pieces.size() == piece_index - 1 && this->pieces[piece_index].blocks.size() - 1 == blockIndex ? sizeOfLastBlockInLastPiece : ((block < fullBlocks) ? blockSize : lastBlockSize);
+		int length = this->pieces.size() - 1 == piece_index && this->pieces[piece_index].blocks.size() - 1 == blockIndex ? sizeOfLastBlockInLastPiece : ((block < fullBlocks) ? blockSize : lastBlockSize);
 
 		// Construct the message
 		std::array<unsigned char, 17> requestMessage; // 4 bytes for length prefix, 1 for message ID, 12 for payload

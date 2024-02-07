@@ -358,7 +358,7 @@ std::vector<unsigned char> convertToVector(const std::unique_ptr<char[]>& data, 
 void dev_test() {
 
 	int n = 0;
-	std::string file_name = "congratulations.gif.torrent";
+	std::string file_name = "itsworking.gif.torrent";
 	std::ifstream torrent_file(file_name);
 	std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
 	json decoded_value = decode_bencoded_value(str, n);
@@ -446,8 +446,8 @@ void dev_test() {
 		bittorent_session.onDataReceived(data);
 		});
 
-	bittorent_session.piece_index_to_download = atoi("2");
-	bittorent_session.request_download_name = "piece-2";
+	bittorent_session.piece_index_to_download = atoi("9");
+	bittorent_session.request_download_name = "piece-9";
 
 	// Create a timer handle
 	auto timer = loop->resource<uvw::timer_handle>();
