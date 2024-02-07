@@ -451,6 +451,11 @@ void dev_test() {
 }
 int main(int argc, char* argv[]) {
 
+	for (int i = 1; i < argc; i++)
+	{
+		std::cout << argv[i] << " "  ;
+	}
+	std::cout << "\n";
 	//   int n = 0;
 	//   std::ifstream torrent_file("sample.torrent");
 	   //std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
@@ -768,7 +773,7 @@ int main(int argc, char* argv[]) {
 	}
 	else if (command == "download_piece") {
 		int n = 0;
-		std::string file_name = argv[2];
+		std::string file_name = argv[4];
 		std::ifstream torrent_file(file_name);
 		std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
 		json decoded_value = decode_bencoded_value(str, n);
