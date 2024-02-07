@@ -51,7 +51,7 @@ public:
 	std::vector<uint8_t> buffer;
 	BTConnection(std::shared_ptr<uvw::tcp_handle> tcp_handle, json decoded_json);
 	void onDataReceived(const std::vector<uint8_t>& data);
-	void requestDownload(size_t piece_index);
+	void requestDownload(size_t piece_index,size_t blockIndex);
 
 	std::string request_download_name =  ""; 
 	int32_t piece_index_to_download = 0;

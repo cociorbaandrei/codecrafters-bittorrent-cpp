@@ -445,10 +445,28 @@ void dev_test() {
 		bittorent_session.onDataReceived(data);
 		});
 
-
+	bittorent_session.piece_index_to_download = atoi("0");
 	bittorent_session.request_download_name = "test-piece-0";
 	loop->run();
 }
+static std::string base64_encode(const std::string& in) {
+
+	std::string out;
+
+	int val = 0, valb = -6;
+	for (unsigned char c : in) {
+		val = (val << 8) + c;
+		valb += 8;
+		while (valb >= 0) {
+			out.push_back("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[(val >> valb) & 0x3F]);
+			valb -= 6;
+		}
+	}
+	if (valb > -6) out.push_back("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[((val << 8) >> (valb + 8)) & 0x3F]);
+	while (out.size() % 4) out.push_back('=');
+	return out;
+}
+
 int main(int argc, char* argv[]) {
 
 	//for (int i = 1; i < argc; i++)
@@ -564,9 +582,9 @@ int main(int argc, char* argv[]) {
 	//	bittorent_session.onDataReceived(data);
 	//});
 
-	//loop->run();
+//	loop->run();
 	//dev_test();
-	//return 0;
+//	return 0;
 
 	if (argc < 2) {
 		std::cerr << "Usage: " << argv[0] << " decode <encoded_value>" << std::endl;
@@ -701,6 +719,7 @@ int main(int argc, char* argv[]) {
 		int n = 0;
 		std::ifstream torrent_file(file_name);
 		std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
+
 		json decoded_value = decode_bencoded_value(str, n);
 		//std::cout << "Tracker URL: " << decoded_value["announce"].template get<std::string>() << std::endl;
 		//std::cout << "Length: " << decoded_value["info"]["length"].dump() << std::endl;
@@ -776,6 +795,7 @@ int main(int argc, char* argv[]) {
 		std::string file_name = argv[4];
 		std::ifstream torrent_file(file_name);
 		std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
+		std::cout << base64_encode(str.c_str()) << "\n";
 		json decoded_value = decode_bencoded_value(str, n);
 		std::cout << "Tracker URL: " << decoded_value["announce"].template get<std::string>() << std::endl;
 		std::cout << "Length: " << decoded_value["info"]["length"].dump() << std::endl;
@@ -838,13 +858,13 @@ int main(int argc, char* argv[]) {
 			auto data = msg.serialize();
 
 			tcpClient->write(&data[0], data.size());
-
+			tcpClient->read();
 			});
 
 		// Handle the write event
 		tcpClient->on<uvw::write_event>([&tcpClient](const uvw::write_event& connect_event, uvw::tcp_handle& tcp_handle) {
 			std::cout << "Message sent." << std::endl;
-			tcpClient->read();
+
 			});
 
 		// Handle errors
@@ -858,7 +878,7 @@ int main(int argc, char* argv[]) {
 			//std::cout << "Data received: " << std::string(event.data.get(), event.length) << " size: " << event.length << std::endl;
 			std::vector<uint8_t> data(event.data.get(), event.data.get() + event.length);
 			bittorent_session.onDataReceived(data);
-			});
+		});
 
 
 		bittorent_session.piece_index_to_download = atoi(argv[5]);

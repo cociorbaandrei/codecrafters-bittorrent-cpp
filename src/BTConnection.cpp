@@ -155,6 +155,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		
 		std::cout << "Piece Index: " << pieceIndex << " Begin: " << begin << "Size: " << piece_data.size() << "\n";
 		onBlockReceived(pieceIndex, begin / blockSize, piece_data);
+		requestDownload(piece_index_to_download, begin / blockSize + 1);
 		break;
 	}
 	case BTMessageType::Unchoke:
@@ -163,8 +164,10 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 
 		std::string pieces;
 
-		if (request_download_name != "")
-			requestDownload(piece_index_to_download);
+		if (request_download_name != "") {
+			initializePieces(m_decoded_json);
+			requestDownload(piece_index_to_download, 0);
+		}
 
 		break;
 	}
@@ -181,10 +184,10 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 	}
 }
 
-void BTConnection::requestDownload(size_t piece_index)
+void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 {
 
-	initializePieces(m_decoded_json);
+	
 	std::string pieces;
 	std::int32_t piece_length;
 	m_decoded_json["info"].at("pieces").get_to(pieces);
@@ -197,7 +200,8 @@ void BTConnection::requestDownload(size_t piece_index)
 	const int fullBlocks = pieceLength / blockSize; // Number of full blocks
 	const int lastBlockSize = pieceLength % blockSize; // Size of the last block, if any
 	const int totalBlocks = fullBlocks + (lastBlockSize > 0 ? 1 : 0); // Total blocks including the last partial block, if any
-	for (int block = 0; block < totalBlocks; ++block) {
+	//for (int block = 0; block < totalBlocks; ++block) {
+		int block = blockIndex;
 		int begin = block * blockSize;
 		int length = (block < fullBlocks) ? blockSize : lastBlockSize;
 
@@ -219,7 +223,7 @@ void BTConnection::requestDownload(size_t piece_index)
 
 		// Send the message
 		m_tcp_handle->write(reinterpret_cast<char*>(requestMessage.data()), requestMessage.size());
-	}
+	//}
 }
 
 void BTConnection::initializePieces(json metadata)
@@ -252,13 +256,22 @@ void BTConnection::initializePieces(json metadata)
 
 void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const std::vector<uint8_t>& data)
 {
+
 	Piece& piece = pieces[pieceIndex];
+	if (blockIndex >= piece.blocks.size())
+		return;
 	Block& block = piece.blocks[blockIndex];
 	block.data = data;
 	block.received = true;
 
 	// Check if the piece is complete
+	for (int i = 0; i < piece.blocks.size(); i++) {
+		if (!piece.blocks[i].received) {
+			requestDownload(pieceIndex, i);
+		}
+	}
 	if (piece.isComplete()) {
+		std::cout << "Piece " << pieceIndex  <<" downloaded to " << request_download_name << ".\n";
 		writePieceToFile(pieceIndex, piece);
 		//requestDownload(pieceIndex + 1);
 	}
@@ -272,11 +285,11 @@ void BTConnection::writePieceToFile(size_t pieceIndex, const Piece& piece)
 
 	std::ofstream file(request_download_name, std::ios::binary | std::ios::app |  std::ios::out);
 	if (!file.is_open()) {
-		// Handle error
+		std::cerr << "error opening: " << request_download_name << "\n";
 		return;
 	}
 
-	file.seekp(pieceIndex * piece_length);
+	//file.seekp(pieceIndex * piece_length);
 	for (const auto& block : piece.blocks) {
 		file.write(reinterpret_cast<const char*>(block.data.data()), block.data.size());
 	}
