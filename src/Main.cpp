@@ -316,7 +316,7 @@ namespace ns {
 		std::string url_encoded_hash = urlencode(torrent->info_hash);
 		sprintf(
 			url_buffer,
-			"%s?info_hash=%s&peer_id=%s&port=%d&uploaded=%d&downloaded=%d&left=%d&compact=1",
+			"%s?info_hash=%s&peer_id=%s&port=%ld&uploaded=%ld&downloaded=%ld&left=%ld&compact=1",
 			torrent->announce.c_str(),
 			url_encoded_hash.c_str(),
 			torrent->peer_id.c_str(),
@@ -611,8 +611,10 @@ int main(int argc, char* argv[]) {
 	//});
 
 	//loop->run();
-	//dev_test();
-	//return 0;
+	if (argc <= 2) {
+		dev_test();
+		return 0;
+	}
 
 	if (argc < 2) {
 		std::cerr << "Usage: " << argv[0] << " decode <encoded_value>" << std::endl;

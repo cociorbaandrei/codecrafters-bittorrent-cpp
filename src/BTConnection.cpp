@@ -162,7 +162,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		spdlog::debug("Piece Index: {:0}, Begin: {:1}, Size: {:2}", pieceIndex, begin, piece_data.size());
 
 		onBlockReceived(pieceIndex, begin / blockSize, piece_data);
-		requestDownload(piece_index_to_download, begin / blockSize + 1);
+		//requestDownload(piece_index_to_download, begin / blockSize + 1);
 		break;
 	}
 	case BTMessageType::Unchoke:
@@ -226,8 +226,8 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 	spdlog::debug("Last piece size: {:0}", lastPieceSize);
 	spdlog::debug("Size of the last block in the last piece: {:0} bytes", sizeOfLastBlockInLastPiece);
 
-	//for (int block = 0; block < totalBlocks; ++block) {
-		int block = blockIndex;
+	for (int block = 0; block < this->pieces[piece_index].blocks.size(); ++block) {
+		//int block = block;
 		int begin = block * blockSize;
 		int length = this->pieces.size() - 1 == piece_index && this->pieces[piece_index].blocks.size() - 1 == blockIndex ? sizeOfLastBlockInLastPiece : ((block < fullBlocks) ? blockSize : lastBlockSize);
 
@@ -249,7 +249,7 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 
 		// Send the message
 		m_tcp_handle->write(reinterpret_cast<char*>(requestMessage.data()), requestMessage.size());
-	//}
+	}
 }
 
 void BTConnection::initializePieces(json metadata)
@@ -289,22 +289,7 @@ void BTConnection::initializePieces(json metadata)
 	spdlog::debug("Last piece size: {:0}", lastPieceSize);
 	spdlog::debug("Size of the last block in the last piece: {:0} bytes", sizeOfLastBlockInLastPiece);
 
-	// std::cout << "Number of blocks: " << totalBlocks << "\n";
-	// std::cout << "Last piece size: " << lastPieceSize << " bytes\n";
-	// std::cout << "Size of the last block in the last piece: " << sizeOfLastBlockInLastPiece << " bytes\n";
-
 	for (size_t i = 0; i < totalPieces; ++i) {
-		// if (i == totalPieces - 1) {
-		// 	Piece piece;
-		// 	size_t blocksInPiece = numberOfBlocksInLastPiece;
-		// 	for (size_t j = 0; j < blocksInPiece; ++j) {
-		// 		piece.blocks.push_back(Block{
-		// 			.expectedSize = blocksInPiece - 1 == j ? sizeOfLastBlockInLastPiece : blockSize
-		// 		});
-		// 	}
-		// 	pieces.push_back(std::move(piece));
-		// 	continue;
-		// }
 		Piece piece;
 		size_t blocksInPiece = i == totalPieces - 1 ? numberOfBlocksInLastPiece : totalBlocks;
 		for (size_t j = 0; j < blocksInPiece; ++j) {
@@ -334,7 +319,6 @@ void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const s
 	}
 	if (piece.isComplete()) {
 		spdlog::debug("Piece {:0} downloaded to {:1}", pieceIndex, request_download_name);
-		//std::cout << "Piece " << pieceIndex  <<" downloaded to " << request_download_name << ".\n";
 		writePieceToFile(pieceIndex, piece);
 		//requestDownload(pieceIndex + 1);
 	}
