@@ -9,8 +9,10 @@
 #endif // WIN32
 #include <memory>
 #include "lib/nlohmann/json.hpp"
+#include "utils.h"
 using json = nlohmann::json;
 void prettyPrintHex(const std::vector<uint8_t>& data, size_t bytesPerLine = 16);
+
 enum class BTMessageType : uint8_t {
 	Choke = 0,
 	Unchoke = 1,
@@ -52,7 +54,7 @@ class BTConnection {
 public:
 	bool handshakeReceived = false;
 	std::vector<uint8_t> buffer;
-	BTConnection(std::shared_ptr<uvw::loop> loop, std::shared_ptr<uvw::tcp_handle> tcp_handle, json decoded_json);
+	BTConnection(std::shared_ptr<uvw::loop> loop, std::shared_ptr<uvw::tcp_handle> tcp_handle, json decoded_json, torrent::MetaData metadata);
 	void onDataReceived(const std::vector<uint8_t>& data);
 	void requestDownload(size_t piece_index,size_t blockIndex);
 
@@ -70,7 +72,7 @@ private:
 	json m_decoded_json;
 
 	std::vector<Piece> pieces;
-
+	torrent::MetaData m_metadata;
 	void initializePieces(json metadata);
 	void onBlockReceived(size_t pieceIndex, size_t blockIndex, const std::vector<uint8_t>& data);
 	void writePieceToFile(size_t pieceIndex, const Piece& piece);

@@ -30,6 +30,7 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(fmtlib)
+
 FetchContent_Declare(
   spdlog
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
@@ -37,7 +38,8 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(spdlog)
-set(SOURCE_FILES src/Main.cpp src/lib/nlohmann/json.hpp)
+
+set(SOURCE_FILES src/Main.cpp src/lib/nlohmann/json.hpp src/utils.cpp)
 add_executable(bittorrent ${SOURCE_FILES} "src/BTConnection.cpp" "src/BitTorrentMessage.cpp")
 target_link_libraries(bittorrent PRIVATE uv_a uvw::uvw fmt spdlog::spdlog) # Link against libuv
 target_include_directories(bittorrent PUBLIC ${uvw_SOURCE_DIR}/src ${spdlog_SOURCE_DIR}/src) # Include uvw headers

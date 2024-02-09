@@ -27,14 +27,18 @@ public:
 	static constexpr std::string_view ProtocolString = "BitTorrent protocol";
 	static constexpr std::array<uint8_t, 8> ReservedBytes = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	std::array<uint8_t, 20> infoHash; // This should be set to the actual SHA1 hash
-	std::array<uint8_t, 20> peerId = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99 };
+	std::array<uint8_t, 20> peerId = { 0x01, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99 };
 
 	// Constructor that initializes infoHash with a provided value
 	BitTorrentMessage(const std::array<uint8_t, 20>& hash = {}) : infoHash(hash) {}
 
 	// Serialize the message to a byte array
 	std::vector<char> serialize() const {
+		//const char h[] = "\x13BitTorrent protocol\x00\x00\x00\x00\x00\x00\x00\x00\x86\xd4\xc8\x00\x24\xa4\x69\xbe\x4c\x50\xbc\x5a\x10\x2c\xf7\x17\x80\x31\x00\x74-TR2940-k8hj0wgej6ch";
+	//	std::vector<uint8_t> m = { 19, 66, 105, 116, 84, 111, 114, 114, 101, 110, 116, 32, 112, 114, 111, 116, 111, 99, 111, 108, 0, 0, 0, 0, 0, 0, 0, 0, 95, 255, 14, 28, 138, 196, 20, 134, 3, 16, 188, 193, 203, 118, 172, 40, 233, 96, 239, 190, 91, 118, 198, 4, 222, 248, 170, 23, 224, 176, 48, 76, 249, 172, 156, 170, 181, 22, 198, 146 };
 		std::vector<char> message;
+		/*for (int i = 0; i < m.size(); i++)
+			message.push_back(m[i]);*/
 		message.reserve(1 + ProtocolLength + ReservedBytes.size() + infoHash.size() + peerId.size());
 
 		message.push_back(static_cast<char>(ProtocolLength));

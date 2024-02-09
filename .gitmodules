@@ -1,0 +1,3 @@
+[submodule "src/external/cpp-bencoding"]
+	path = src/external/cpp-bencoding
+	url = https://github.com/s3rvac/cpp-bencoding

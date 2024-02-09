@@ -55,10 +55,12 @@ void prettyPrintHex(const std::vector<uint8_t>& data, size_t bytesPerLine) {
 BTConnection::BTConnection(
 	std::shared_ptr<uvw::loop> loop, 
 	std::shared_ptr<uvw::tcp_handle> tcp_handle, 
-	json decoded_json)
+	json decoded_json,
+	torrent::MetaData metadata)
 	: m_loop(loop)
 	, m_tcp_handle(tcp_handle)
 	, m_decoded_json(decoded_json)
+	, m_metadata(metadata)
 {
 }
 
@@ -149,9 +151,20 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 	//prettyPrintHex(message.payload);
 	switch (message.type) {
 	case BTMessageType::Choke:
-		spdlog::debug("Received BTMessageType::Choke");
+		spdlog::info("Received BTMessageType::Choke");
 		//handleChoke(message.payload);
 		break;
+	case BTMessageType::Have:
+	{
+		spdlog::info("Received BTMessageType::Have");
+		prettyPrintHex(message.payload);
+		auto pieceIndex = ntohl(*reinterpret_cast<const uint32_t*>(message.payload.data()));
+		spdlog::info("Have {0}", pieceIndex);
+	//	if (pieces.size() == 0)
+	//		initializePieces(m_decoded_json);
+		//requestDownload(pieceIndex, 0);
+		break;
+	}
 	case BTMessageType::Piece:
 	{
 		spdlog::debug("Received BTMessageType::Piece");
@@ -161,12 +174,45 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		auto begin = ntohl(*reinterpret_cast<const uint32_t*>(message.payload.data() + 4));
 		std::vector<uint8_t> piece_data(message.payload.begin() + 8, message.payload.end());
 		
-		std::int32_t piece_length;
-		m_decoded_json["info"].at("piece length").get_to(piece_length);
 		const int blockSize = 16 * 1024; // 16 KiB
-		const int pieceLength = piece_length;
-		const int fullBlocks = pieceLength / blockSize; // Number of full blocks
+
 		spdlog::debug("Piece Index: {:0}, Begin: {:1}, Size: {:2}", pieceIndex, begin, piece_data.size());
+
+
+		const std::string filename = std::string{ "test.gif" };
+		auto openReq = m_loop->resource<uvw::file_req>();
+
+
+		bool checkFileOpenErrorEvent = false;
+
+		openReq->on<uvw::error_event>([openReq](const auto&, auto&) {
+			spdlog::debug("openReq->on<uvw::error_event>");
+		});
+
+		openReq->on<uvw::fs_event>([openReq, pieceIndex, piece_data, begin, blockSize, this](const auto& event, auto& req) {
+			//spdlog::debug("openReq->on<uvw::fs_event>");
+			if (event.type == uvw::fs_req::fs_type::OPEN) {
+				std::int32_t piece_length = m_metadata.info.piece_length;
+
+				//m_decoded_json["info"].at("piece length").get_to(piece_length);
+
+				std::unique_ptr<char[]> data{ new char[blockSize*16] {'B'} }; // Example data
+				memcpy(data.get(), piece_data.data(), piece_data.size());
+
+				std::int64_t offset = pieceIndex * piece_length + begin; // Offset in bytes, where to start writing
+				req.write(std::move(data), piece_data.size(), pieceIndex * piece_length + begin);
+			}
+			else if (event.type == uvw::fs_req::fs_type::WRITE) {
+				// Writing completed
+				//spdlog::debug("openReq->on<uvw::fs_event> event.type == uvw::fs_req::fs_type::WRITE");
+				req.close(); // Close the file once writing is done
+			}
+			});
+		auto flags = uvw::file_req::file_open_flags::CREAT | uvw::file_req::file_open_flags::RDWR;
+
+
+		openReq->open(m_metadata.info.name, flags, 0644);
+
 
 		onBlockReceived(pieceIndex, begin / blockSize, piece_data);
 		//requestDownload(piece_index_to_download, begin / blockSize + 1);
@@ -175,7 +221,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 	case BTMessageType::Unchoke:
 	{
 		//std::cout << "Received BTMessageType::Unchoke\n";
-		spdlog::debug("Received BTMessageType::Unchoke");
+		spdlog::info("Received BTMessageType::Unchoke");
 		std::string pieces;
 
 		if (request_download_name != "") {
@@ -187,7 +233,8 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 	}
 	case BTMessageType::Bitfield:
 	{
-		spdlog::debug("Received BTMessageType::Bitfield");
+		spdlog::info("Received BTMessageType::Bitfield");
+		prettyPrintHex(message.payload);
 		char data[] = "\x00\x00\x00\x01\x02";
 		m_tcp_handle->write(data, 5);
 		break;
@@ -207,11 +254,12 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 		return;
 	if(this->pieces[piece_index].blocks[blockIndex].received)
 		return;
-	std::string pieces;
-	std::int32_t piece_length;
-	m_decoded_json["info"].at("pieces").get_to(pieces);
-	m_decoded_json["info"].at("piece length").get_to(piece_length);
-	auto totalLength = m_decoded_json["info"]["length"].template get<std::uint32_t>();
+	std::string pieces = m_metadata.info.pieces;
+	std::int32_t piece_length = m_metadata.info.piece_length;
+	//m_decoded_json["info"].at("pieces").get_to(pieces);
+//	m_decoded_json["info"].at("piece length").get_to(piece_length);
+//	auto totalLength = m_decoded_json["info"]["length"].template get<std::uint32_t>();
+	auto totalLength = m_metadata.info.length;
 	uint32_t no_pieces = pieces.length() / 20;
 
 	const int blockSize = 16 * 1024; // 16 KiB
@@ -238,14 +286,15 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 	spdlog::debug("Number of blocks: {:0}", totalBlocks);
 	spdlog::debug("Last piece size: {:0}", lastPieceSize);
 	spdlog::debug("Size of the last block in the last piece: {:0} bytes", sizeOfLastBlockInLastPiece);
-	const size_t pipelineWindowSize = 5; // Example window size
+
 	for (int block = 0; block < this->pieces[piece_index].blocks.size(); ++block) {
 		//int block = blockIndex;
 		int begin = block * blockSize;
-		int length = this->pieces.size() - 1 == piece_index && this->pieces[piece_index].blocks.size() - 1 == block ? sizeOfLastBlockInLastPiece : ((block < fullBlocks) ? blockSize : lastBlockSize);
+		int length = this->pieces.size() - 1 == piece_index && this->pieces[piece_index].blocks.size() - 1 == block ? sizeOfLastBlockInLastPiece : blockSize;
 
 		// Construct the message
-		std::array<unsigned char, 17> requestMessage; // 4 bytes for length prefix, 1 for message ID, 12 for payload
+		//std::array<unsigned char, 17> requestMessage; // 4 bytes for length prefix, 1 for message ID, 12 for payload
+		std::unique_ptr< char[]> requestMessage{ new  char[17] {0} }; // Example data
 		// Length prefix (13, since payload is 12 bytes long)
 		requestMessage[0] = 0;
 		requestMessage[1] = 0;
@@ -254,25 +303,24 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 		// Message ID (6)
 		requestMessage[4] = 6;
 		// Piece index (network byte order)
-		*reinterpret_cast<uint32_t*>(requestMessage.data() + 5) = htonl(pieceIndex);
+		*reinterpret_cast<uint32_t*>(requestMessage.get() + 5) = htonl(pieceIndex);
 		// Begin (network byte order)
-		*reinterpret_cast<uint32_t*>(requestMessage.data() + 9) = htonl(begin);
+		*reinterpret_cast<uint32_t*>(requestMessage.get() + 9) = htonl(begin);
 		// Length (network byte order)
-		*reinterpret_cast<uint32_t*>(requestMessage.data() + 13) = htonl(length);
+		*reinterpret_cast<uint32_t*>(requestMessage.get() + 13) = htonl(length);
 
 		// Send the message
-		m_tcp_handle->write(reinterpret_cast<char*>(requestMessage.data()), requestMessage.size());
+		m_tcp_handle->write(std::move(requestMessage), 17);
 	}
 	
 }
 
 void BTConnection::initializePieces(json metadata)
 {
-	std::int32_t piece_length;
-	std::string pieces_hex;
-
-	m_decoded_json["info"].at("piece length").get_to(piece_length);
-	m_decoded_json["info"].at("pieces").get_to(pieces_hex);
+	std::string pieces_hex = m_metadata.info.pieces;
+	std::int32_t piece_length = m_metadata.info.piece_length;
+	//m_decoded_json["info"].at("piece length").get_to(piece_length);
+	//m_decoded_json["info"].at("pieces").get_to(pieces_hex);
 	uint32_t no_pieces = pieces_hex.length() / 20;
 
 	const int blockSize = 16 * 1024; // 16 KiB
@@ -280,7 +328,8 @@ void BTConnection::initializePieces(json metadata)
 	const int fullBlocks = pieceLength / blockSize; // Number of full blocks
 
 
-	auto totalLength = metadata["info"]["length"].template get<std::uint32_t>();
+	//auto totalLength = metadata["info"]["length"].template get<std::uint32_t>();
+	auto totalLength = m_metadata.info.length;
 	const int lastBlockSize = pieceLength % blockSize; // Size of the last block, if any
 	const int totalBlocks = fullBlocks + (lastBlockSize > 0 ? 1 : 0); // Total blocks including the last partial block, if any
 	size_t totalPieces = totalLength / piece_length + (totalLength % piece_length > 0 ? 1 : 0);
@@ -325,14 +374,10 @@ void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const s
 	block.data = data;
 	block.received = true;
 
-	// // Check if the piece is complete
-	// for (int i = 0; i < std::min(piece.blocks.size(), (size_t)5); i++) {
-	// 	if (!piece.blocks[i].received) {
-	// 		requestDownload(pieceIndex, i);
-	// 	}
-	// }
 
 	if (piece.isComplete()) {
+		//char data[] = "\x00\x00\x00\x01\x02";
+		//m_tcp_handle->write(data, 5);
 		spdlog::info("Piece {:0} downloaded to {:1}", pieceIndex, request_download_name);
 		writePieceToFile(pieceIndex, piece);
 		if(pieceIndex == this->pieces.size() - 1 && blockIndex == this->pieces[pieceIndex].blocks.size() - 1){
@@ -351,11 +396,13 @@ void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const s
 
 void BTConnection::writePieceToFile(size_t pieceIndex, const Piece& piece)
 {
-	std::int32_t piece_length;
 
-	m_decoded_json["info"].at("piece length").get_to(piece_length);
+	std::int32_t piece_length = m_metadata.info.piece_length;
+
+	//m_decoded_json["info"].at("piece length").get_to(piece_length);
 
 	std::ofstream file(request_download_name, std::ios::binary | std::ios::app |  std::ios::out);
+	//std::ofstream file(m_metadata.info.name +"v_2", std::ios::binary | std::ios::app | std::ios::out);
 	if (!file.is_open()) {
 		spdlog::error("error opening: ", request_download_name);
 		//std::cerr << "error opening: " << request_download_name << "\n";
