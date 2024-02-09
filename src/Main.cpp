@@ -211,6 +211,7 @@ json decode_bencoded_value(const std::string& encoded_value, int& chars_processe
 			parsed_content[decoded_key] = decoded_dict_value;
 		}
 
+		if(content.size() > 1)
 		content = content.substr(1, content.length());
 		chars_processed += 1;
 		return parsed_content;
@@ -374,25 +375,30 @@ void dev_test() {
 
 	int n = 0;
 	std::string file_name = "anyone.torrent";
-	std::ifstream torrent_file(file_name);
+	std::uintmax_t filesize = std::filesystem::file_size("anyone.torrent");
+	std::ifstream torrent_file(file_name, std::ios::binary);
 	std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
+
+	
+
 	auto dec = utils::bencode::parse(str);
 
 	auto hash = torrent::info_hash(dec);
+
 	auto metadata = torrent::initialize(dec);
-	//auto peers_response = torrent::discover_peers(metadata);
+	auto peers_response = torrent::discover_peers(metadata);
 	json decoded_value;
-	//auto decoded_value = decode_bencoded_value(str, n);
-	//spdlog::debug("Info Hash: {0}", hash);
+
+	spdlog::debug("Info Hash: {0}", hash);
 	//spdlog::debug("Piece Length:  {0}", info_struct.piece_length);
-	//spdlog::debug("Piece Hashes: ");
+//	spdlog::debug("Piece Hashes: ");
 
 	auto loop = uvw::loop::get_default();
 
 	auto tcpClient = loop->resource<uvw::tcp_handle>();
-	hash = "07ce596e5ab4a13053efdb039b3b038c26da3eac";
-	torrent::TrackerResponse peers_response;
-	peers_response.peers.push_back({ "127.0.0.1", 25428 ,""});
+
+//	torrent::TrackerResponse peers_response;
+//	peers_response.peers.push_back({ "127.0.0.1", 25428 ,""});
 	tcpClient->connect(std::get<0>(peers_response.peers[0]), std::get<1>(peers_response.peers[0]));
 
 	tcpClient->on<uvw::connect_event>([&tcpClient, hash](const uvw::connect_event& connect_event, uvw::tcp_handle& tcp_handle) {

@@ -189,18 +189,22 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 			spdlog::debug("openReq->on<uvw::error_event>");
 		});
 
-		openReq->on<uvw::fs_event>([openReq, pieceIndex, piece_data, begin, blockSize, this](const auto& event, auto& req) {
+		openReq->on<uvw::fs_event>([openReq, pieceIndex,&piece_data, begin, blockSize, this](const auto& event, auto& req) {
 			//spdlog::debug("openReq->on<uvw::fs_event>");
 			if (event.type == uvw::fs_req::fs_type::OPEN) {
 				std::int32_t piece_length = m_metadata.info.piece_length;
 
 				//m_decoded_json["info"].at("piece length").get_to(piece_length);
 
-				std::unique_ptr<char[]> data{ new char[blockSize*16] {'B'} }; // Example data
-				memcpy(data.get(), piece_data.data(), piece_data.size());
+	
+				// Create a std::unique_ptr with the customad deleter
+				//std::unique_ptr<char[]> data(new char[blockSize] {'B'});
+
+				//memcpy(data.get(), piece_data.data(), piece_data.size());
 
 				std::int64_t offset = pieceIndex * piece_length + begin; // Offset in bytes, where to start writing
-				req.write(std::move(data), piece_data.size(), pieceIndex * piece_length + begin);
+				req.write(( char*)piece_data.data(), piece_data.size(), pieceIndex * piece_length + begin);
+
 			}
 			else if (event.type == uvw::fs_req::fs_type::WRITE) {
 				// Writing completed
@@ -212,7 +216,6 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 
 
 		openReq->open(m_metadata.info.name, flags, 0644);
-
 
 		onBlockReceived(pieceIndex, begin / blockSize, piece_data);
 		//requestDownload(piece_index_to_download, begin / blockSize + 1);
@@ -250,20 +253,18 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 {
 	spdlog::info("Requesting Piece {:0} block {:1}", piece_index, blockIndex);
+	if (piece_index >= this->pieces.size())
+		return;
 	if(blockIndex > this->pieces[piece_index].blocks.size())
 		return;
 	if(this->pieces[piece_index].blocks[blockIndex].received)
 		return;
 	std::string pieces = m_metadata.info.pieces;
 	std::int32_t piece_length = m_metadata.info.piece_length;
-	//m_decoded_json["info"].at("pieces").get_to(pieces);
-//	m_decoded_json["info"].at("piece length").get_to(piece_length);
-//	auto totalLength = m_decoded_json["info"]["length"].template get<std::uint32_t>();
+
 	auto totalLength = m_metadata.info.length;
-	uint32_t no_pieces = pieces.length() / 20;
 
 	const int blockSize = 16 * 1024; // 16 KiB
-	const int pieceIndex = piece_index;
 	const int pieceLength = piece_length;
 	const int fullBlocks = pieceLength / blockSize; // Number of full blocks
 	const int lastBlockSize = pieceLength % blockSize; // Size of the last block, if any
@@ -303,7 +304,7 @@ void BTConnection::requestDownload(size_t piece_index, size_t blockIndex)
 		// Message ID (6)
 		requestMessage[4] = 6;
 		// Piece index (network byte order)
-		*reinterpret_cast<uint32_t*>(requestMessage.get() + 5) = htonl(pieceIndex);
+		*reinterpret_cast<uint32_t*>(requestMessage.get() + 5) = htonl(piece_index);
 		// Begin (network byte order)
 		*reinterpret_cast<uint32_t*>(requestMessage.get() + 9) = htonl(begin);
 		// Length (network byte order)
@@ -378,9 +379,10 @@ void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const s
 	if (piece.isComplete()) {
 		//char data[] = "\x00\x00\x00\x01\x02";
 		//m_tcp_handle->write(data, 5);
-		spdlog::info("Piece {:0} downloaded to {:1}", pieceIndex, request_download_name);
+		spdlog::info("Piece {0} downloaded to {1} {2} {3}", pieceIndex, request_download_name, pieceIndex, blockIndex);
 		writePieceToFile(pieceIndex, piece);
-		if(pieceIndex == this->pieces.size() - 1 && blockIndex == this->pieces[pieceIndex].blocks.size() - 1){
+		if(pieceIndex == this->pieces.size() - 1){
+			m_tcp_handle->stop();
 			m_tcp_handle->close();
 			return;
 		}
@@ -401,8 +403,8 @@ void BTConnection::writePieceToFile(size_t pieceIndex, const Piece& piece)
 
 	//m_decoded_json["info"].at("piece length").get_to(piece_length);
 
-	std::ofstream file(request_download_name, std::ios::binary | std::ios::app |  std::ios::out);
-	//std::ofstream file(m_metadata.info.name +"v_2", std::ios::binary | std::ios::app | std::ios::out);
+	//std::ofstream file(request_download_name, std::ios::binary | std::ios::app |  std::ios::out);
+	std::ofstream file(m_metadata.info.name +"v_2", std::ios::binary | std::ios::app | std::ios::out);
 	if (!file.is_open()) {
 		spdlog::error("error opening: ", request_download_name);
 		//std::cerr << "error opening: " << request_download_name << "\n";

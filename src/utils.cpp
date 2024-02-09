@@ -156,6 +156,8 @@ namespace torrent {
 	{
 		auto dictionary = *std::get<utils::bencode::BencodeDictPtr>(data);
 		auto info_ser = utils::bencode::serialize(dictionary["info"]);
+		//	for (int i = 0; i < info_ser.size(); i++)
+			printf("%s, ", info_ser.c_str());
 		SHA1 checksum;
 		checksum.update(info_ser);
 		const std::string hash = checksum.final();
