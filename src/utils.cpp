@@ -6,6 +6,24 @@
 #include "spdlog/spdlog.h"
 #include "lib/sha1.hpp"
 #include "lib/HTTPRequest.hpp"
+#include "lib/nlohmann/json.hpp"
+#include "lib/HTTPRequest.hpp"
+#include <random>
+#include <stdio.h>
+#include <tuple>
+#include <uvw.hpp>
+#include <iostream>
+#include <memory>
+#include <array>
+#include <cstring>
+#include <iostream>
+#include <string_view>
+#include <chrono>
+#include <thread>
+#include "spdlog/spdlog.h"
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/basic_file_sink.h>
+
 namespace utils::bencode {
 	BencodeInt decode_int(const std::string& encoded_value, size_t& index) {
 		size_t end_index = encoded_value.find('e', index);
@@ -116,6 +134,7 @@ namespace utils::bencode {
 
 }
 
+
 namespace torrent {
 	MetaData initialize(utils::bencode::BencodeValue data)
 	{
@@ -131,7 +150,7 @@ namespace torrent {
 		{
 			peer_id += std::to_string(dist6(dev));
 		}
-		std::cout << "Peer Id: " << peer_id << std::endl;
+		//std::cout << "Peer Id: " << peer_id << std::endl;
 		//peer_id = "AAAAAAAAAAAAAAAAAAAAA";
 		MetaData metadata = {
 			.info_hash = info_hash(data),
@@ -156,8 +175,6 @@ namespace torrent {
 	{
 		auto dictionary = *std::get<utils::bencode::BencodeDictPtr>(data);
 		auto info_ser = utils::bencode::serialize(dictionary["info"]);
-		//	for (int i = 0; i < info_ser.size(); i++)
-			printf("%s, ", info_ser.c_str());
 		SHA1 checksum;
 		checksum.update(info_ser);
 		const std::string hash = checksum.final();
@@ -282,4 +299,22 @@ namespace utils::hex {
 		}
 		return e.str();
 	}
+}
+
+static std::string base64_encode(const std::string& in) {
+
+	std::string out;
+
+	int val = 0, valb = -6;
+	for (unsigned char c : in) {
+		val = (val << 8) + c;
+		valb += 8;
+		while (valb >= 0) {
+			out.push_back("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[(val >> valb) & 0x3F]);
+			valb -= 6;
+		}
+	}
+	if (valb > -6) out.push_back("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[((val << 8) >> (valb + 8)) & 0x3F]);
+	while (out.size() % 4) out.push_back('=');
+	return out;
 }
