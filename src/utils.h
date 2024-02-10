@@ -85,6 +85,6 @@ namespace utils::hex {
 	std::string hexCharToBinary(char hex);
 	// Parse a hex string to a binary string
 	std::string hexToBinary(const std::string& hex);
-	void parseBitfield(const std::string& hexBitfield);
+	std::string parseBitfield(const std::string& hexBitfield);
 	std::string bytesToHexString(const std::vector<uint8_t>& bytes);
 }

@@ -39,7 +39,16 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(spdlog)
 
-set(SOURCE_FILES src/Main.cpp src/lib/nlohmann/json.hpp src/utils.cpp)
+FetchContent_Declare(
+  indicators
+  GIT_REPOSITORY https://github.com/p-ranav/indicators.git
+  GIT_TAG        master # You can specify a specific tag or commit if needed
+)
+
+FetchContent_MakeAvailable(indicators)
+
+
+set(SOURCE_FILES src/Main.cpp src/lib/nlohmann/json.hpp src/utils.cpp src/FileManager.cpp)
 add_executable(bittorrent ${SOURCE_FILES} "src/BTConnection.cpp" "src/BitTorrentMessage.cpp" "src/old_utils.cpp")
-target_link_libraries(bittorrent PRIVATE uv_a uvw::uvw fmt spdlog::spdlog) # Link against libuv
+target_link_libraries(bittorrent PRIVATE uv_a uvw::uvw fmt spdlog::spdlog indicators) # Link against libuv
 target_include_directories(bittorrent PUBLIC ${uvw_SOURCE_DIR}/src ${spdlog_SOURCE_DIR}/src) # Include uvw headers

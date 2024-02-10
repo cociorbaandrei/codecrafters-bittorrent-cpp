@@ -63,6 +63,7 @@ BTConnection::BTConnection(
 	, m_decoded_json(decoded_json)
 	, m_metadata(metadata)
 {
+	m_file_manager = std::make_shared<FileManager>(m_metadata, m_tcp_handle, m_loop);
 }
 
 void BTConnection::onDataReceived(const std::vector<uint8_t>& data)
@@ -161,6 +162,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		prettyPrintHex(message.payload);
 		auto pieceIndex = ntohl(*reinterpret_cast<const uint32_t*>(message.payload.data()));
 		spdlog::info("Have {0}", pieceIndex);
+		m_file_manager->onHave(pieceIndex);
 	//	if (pieces.size() == 0)
 	//		initializePieces(m_decoded_json);
 		//requestDownload(pieceIndex, 0);
@@ -177,7 +179,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		
 		const int blockSize = 16 * 1024; // 16 KiB
 
-		spdlog::debug("Piece Index: {:0}, Begin: {:1}, Size: {:2}", pieceIndex, begin, piece_data.size());
+//		spdlog::debug("Piece Index: {:0}, Begin: {:1}, Size: {:2}", pieceIndex, begin, piece_data.size());
 
 
 		const std::string filename = std::string{ "test.gif" };
@@ -185,7 +187,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 
 
 		bool checkFileOpenErrorEvent = false;
-
+		m_file_manager->onBlockReceived(pieceIndex, begin, begin / blockSize, piece_data);
 		// openReq->on<uvw::error_event>([openReq](const auto& event, auto& req) {
 		// 	spdlog::error("openReq->on<uvw::error_event>");
 		// });
@@ -218,7 +220,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 
 		// openReq->open(m_metadata.info.name, flags, 0644);
 
-		onBlockReceived(pieceIndex, begin / blockSize, piece_data);
+		//onBlockReceived(pieceIndex, begin / blockSize, piece_data);
 		//requestDownload(piece_index_to_download, begin / blockSize + 1);
 		break;
 	}
@@ -229,8 +231,9 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		std::string pieces;
 
 		if (request_download_name != "") {
-			initializePieces(m_decoded_json);
-			requestDownload(piece_index_to_download, 0);
+			//initializePieces(m_decoded_json);
+			m_file_manager->startDownload();
+			//requestDownload(piece_index_to_download, 0);
 		}
 
 		break;
@@ -243,6 +246,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		utils::hex::parseBitfield(utils::hex::bytesToHexString(message.payload));
 		char data[] = "\x00\x00\x00\x01\x02";
 		m_tcp_handle->write(data, 5);
+		m_file_manager->initializePieces(message.payload);
 		break;
 	}
 	default:

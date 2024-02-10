@@ -10,6 +10,7 @@
 #include <memory>
 #include "lib/nlohmann/json.hpp"
 #include "utils.h"
+#include "FileManager.h"
 using json = nlohmann::json;
 void prettyPrintHex(const std::vector<uint8_t>& data, size_t bytesPerLine = 16);
 
@@ -35,20 +36,6 @@ namespace uvw {
 	class loop;
 }
 
-struct Block {
-	std::vector<uint8_t> data;
-	bool received = false;
-	size_t expectedSize = 0;
-	bool requested = false; // Add this to track request status
-};
-
-struct Piece {
-	std::vector<Block> blocks;
-	uint32_t currentBlock;
-	bool isComplete() const {
-		return std::all_of(std::begin(blocks), std::end(blocks), [](const Block& block) {return block.received; });
-	}
-};
 
 class BTConnection {
 public:
@@ -70,9 +57,9 @@ private:
 	std::shared_ptr<uvw::tcp_handle> m_tcp_handle;
 	std::shared_ptr<uvw::loop> m_loop;
 	json m_decoded_json;
-
 	std::vector<Piece> pieces;
 	torrent::MetaData m_metadata;
+	std::shared_ptr<FileManager> m_file_manager;
 	void initializePieces(json metadata);
 	void onBlockReceived(size_t pieceIndex, size_t blockIndex, const std::vector<uint8_t>& data);
 	void writePieceToFile(size_t pieceIndex, const Piece& piece);

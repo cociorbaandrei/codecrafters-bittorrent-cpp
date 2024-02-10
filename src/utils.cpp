@@ -340,7 +340,7 @@ namespace utils::hex {
 	}
 
 	// Parse the bitfield message and print which pieces are available
-	void parseBitfield(const std::string& hexBitfield) {
+	std::string parseBitfield(const std::string& hexBitfield) {
 		std::string binaryBitfield = hexToBinary(hexBitfield);
 		
 		int pieceIndex = 0;
@@ -348,6 +348,7 @@ namespace utils::hex {
 			std::cout << "Piece " << pieceIndex << ": " << (bit == '1' ? "Available" : "Missing") << std::endl;
 			++pieceIndex;
 		}
+		return binaryBitfield;
 	}
 }
 
