@@ -25,6 +25,7 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/bin_to_hex.h"
 #include <algorithm>
+
 void prettyPrintHex(const std::vector<uint8_t>& data, size_t bytesPerLine) {
 	std::stringstream hexStream;
 	size_t byteCount = 0;
@@ -189,7 +190,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 			spdlog::debug("openReq->on<uvw::error_event>");
 		});
 
-		openReq->on<uvw::fs_event>([openReq, pieceIndex,&piece_data, begin, blockSize, this](const auto& event, auto& req) {
+		openReq->on<uvw::fs_event>([openReq, pieceIndex, piece_data, begin, blockSize, this](const auto& event, auto& req) {
 			//spdlog::debug("openReq->on<uvw::fs_event>");
 			if (event.type == uvw::fs_req::fs_type::OPEN) {
 				std::int32_t piece_length = m_metadata.info.piece_length;
@@ -320,8 +321,7 @@ void BTConnection::initializePieces(json metadata)
 {
 	std::string pieces_hex = m_metadata.info.pieces;
 	std::int32_t piece_length = m_metadata.info.piece_length;
-	//m_decoded_json["info"].at("piece length").get_to(piece_length);
-	//m_decoded_json["info"].at("pieces").get_to(pieces_hex);
+
 	uint32_t no_pieces = pieces_hex.length() / 20;
 
 	const int blockSize = 16 * 1024; // 16 KiB
@@ -382,8 +382,8 @@ void BTConnection::onBlockReceived(size_t pieceIndex, size_t blockIndex, const s
 		spdlog::info("Piece {0} downloaded to {1} {2} {3}", pieceIndex, request_download_name, pieceIndex, blockIndex);
 		writePieceToFile(pieceIndex, piece);
 		if(pieceIndex == this->pieces.size() - 1){
-			m_tcp_handle->stop();
-			m_tcp_handle->close();
+			//m_tcp_handle->stop();
+			//m_tcp_handle->close();
 			return;
 		}
 		//m_tcp_handle->close();
