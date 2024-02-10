@@ -39,6 +39,7 @@ namespace uvw{
     class tcp_handle;
     class loop;
     class timer_handle;
+    class file_req;
 }
 class File;
 
@@ -61,4 +62,5 @@ private:
     std::shared_ptr<uvw::timer_handle> m_update_timer;
     std::set<int> m_pieces_to_download;
     std::shared_ptr<indicators::ProgressBar> m_progress_bar;
+    std::shared_ptr<uvw::file_req> m_file;
 };

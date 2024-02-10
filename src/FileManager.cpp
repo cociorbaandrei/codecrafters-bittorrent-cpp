@@ -29,6 +29,7 @@ FileManager::FileManager(const torrent::MetaData& metadata, std::shared_ptr<uvw:
         option::ShowRemainingTime{true},
         option::FontStyles{std::vector<FontStyle>{FontStyle::bold}}
     );
+
 }
 
 void FileManager::initializePieces(const std::vector<uint8_t>& bitfield)
@@ -85,6 +86,7 @@ void FileManager::initializePieces(const std::vector<uint8_t>& bitfield)
 		}
 		m_pieces.push_back(std::move(piece));
 	}
+	
 }
 
 void FileManager::onBlockReceived(size_t pieceIndex, size_t begin, size_t blockIndex, const std::vector<uint8_t>& data)
@@ -98,9 +100,41 @@ void FileManager::onBlockReceived(size_t pieceIndex, size_t begin, size_t blockI
         return;
 	block.data = data;
 	block.received = true;
-    
+   
+
     if (piece.isComplete()) {
         m_pieces_to_download.erase(pieceIndex);
+
+		auto file = m_loop->resource<uvw::file_req>();
+		file->on<uvw::error_event>([](const auto &event, auto &req) {
+			spdlog::error("Error occurred: {}", event.what());
+		});
+
+		file->on<uvw::fs_event>([file, pieceIndex, begin, blockIndex, this](const auto &event, auto &req){
+				//spdlog::debug("openReq->on<uvw::fs_event>");
+				if (event.type == uvw::fs_req::fs_type::OPEN) {
+					std::int32_t piece_length = m_metadata.info.piece_length;
+					std::int64_t offset = pieceIndex * piece_length;
+					std::unique_ptr<char[]> d(new char[m_metadata.info.piece_length]);
+					std::int64_t off2 = 0;
+					for(int i = 0; i < m_pieces[pieceIndex].blocks.size(); i++){
+						memcpy(d.get() + off2, (char*)m_pieces[pieceIndex].blocks[i].data.data(), m_pieces[pieceIndex].blocks[i].data.size());
+						//off2 += m_pieces[pieceIndex].blocks[i].expectedSize;
+						off2 += m_pieces[pieceIndex].blocks[i].data.size();
+					}
+					req.write(std::move(d), off2, offset);
+
+				}
+				else if (event.type == uvw::fs_req::fs_type::WRITE) {
+					// Writing completed
+					//spdlog::debug("openReq->on<uvw::fs_event> event.type == uvw::fs_req::fs_type::WRITE");
+					req.close(); // Close the file once writing is done
+				} 
+		});
+		auto flags = uvw::file_req::file_open_flags::CREAT | uvw::file_req::file_open_flags::RDWR;
+
+		file->open(m_metadata.info.name, flags, 0644);
+
         m_pieces[pieceIndex].endTime = std::chrono::high_resolution_clock::now();;
 		//char data[] = "\x00\x00\x00\x01\x02";
 		//m_tcp_handle->write(data, 5);
