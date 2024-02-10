@@ -121,7 +121,7 @@ void dev_test() {
 
 
 int main(int argc, char* argv[]) {
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
 	
 	if (argc <= 2) {
 		dev_test();

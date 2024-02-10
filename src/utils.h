@@ -80,4 +80,11 @@ namespace utils::hex {
 
 	std::vector<unsigned char> HexToBytes(const std::string& hex);
 	std::string urlencode(const std::string& p);
+
+	// Convert a hex character to its binary representation
+	std::string hexCharToBinary(char hex);
+	// Parse a hex string to a binary string
+	std::string hexToBinary(const std::string& hex);
+	void parseBitfield(const std::string& hexBitfield);
+	std::string bytesToHexString(const std::vector<uint8_t>& bytes);
 }

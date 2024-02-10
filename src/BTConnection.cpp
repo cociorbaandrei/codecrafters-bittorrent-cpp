@@ -25,7 +25,7 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/bin_to_hex.h"
 #include <algorithm>
-
+#include "utils.h"
 void prettyPrintHex(const std::vector<uint8_t>& data, size_t bytesPerLine) {
 	std::stringstream hexStream;
 	size_t byteCount = 0;
@@ -186,37 +186,37 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 
 		bool checkFileOpenErrorEvent = false;
 
-		openReq->on<uvw::error_event>([openReq](const auto&, auto&) {
-			spdlog::debug("openReq->on<uvw::error_event>");
-		});
+		// openReq->on<uvw::error_event>([openReq](const auto& event, auto& req) {
+		// 	spdlog::error("openReq->on<uvw::error_event>");
+		// });
 
-		openReq->on<uvw::fs_event>([openReq, pieceIndex, piece_data, begin, blockSize, this](const auto& event, auto& req) {
-			//spdlog::debug("openReq->on<uvw::fs_event>");
-			if (event.type == uvw::fs_req::fs_type::OPEN) {
-				std::int32_t piece_length = m_metadata.info.piece_length;
+		// openReq->on<uvw::fs_event>([openReq, pieceIndex, piece_data, begin, blockSize, this](const auto& event, auto& req) {
+		// 	//spdlog::debug("openReq->on<uvw::fs_event>");
+		// 	if (event.type == uvw::fs_req::fs_type::OPEN) {
+		// 		std::int32_t piece_length = m_metadata.info.piece_length;
 
-				//m_decoded_json["info"].at("piece length").get_to(piece_length);
+		// 		//m_decoded_json["info"].at("piece length").get_to(piece_length);
 
 	
-				// Create a std::unique_ptr with the customad deleter
-				//std::unique_ptr<char[]> data(new char[blockSize] {'B'});
+		// 		// Create a std::unique_ptr with the customad deleter
+		// 		//std::unique_ptr<char[]> data(new char[blockSize] {'B'});
 
-				//memcpy(data.get(), piece_data.data(), piece_data.size());
+		// 		//memcpy(data.get(), piece_data.data(), piece_data.size());
 
-				std::int64_t offset = pieceIndex * piece_length + begin; // Offset in bytes, where to start writing
-				req.write(( char*)piece_data.data(), piece_data.size(), pieceIndex * piece_length + begin);
+		// 		std::int64_t offset = pieceIndex * piece_length + begin; // Offset in bytes, where to start writing
+		// 		req.write(( char*)piece_data.data(), piece_data.size(), pieceIndex * piece_length + begin);
 
-			}
-			else if (event.type == uvw::fs_req::fs_type::WRITE) {
-				// Writing completed
-				//spdlog::debug("openReq->on<uvw::fs_event> event.type == uvw::fs_req::fs_type::WRITE");
-				req.close(); // Close the file once writing is done
-			}
-			});
-		auto flags = uvw::file_req::file_open_flags::CREAT | uvw::file_req::file_open_flags::RDWR;
+		// 	}
+		// 	else if (event.type == uvw::fs_req::fs_type::WRITE) {
+		// 		// Writing completed
+		// 		//spdlog::debug("openReq->on<uvw::fs_event> event.type == uvw::fs_req::fs_type::WRITE");
+		// 		req.close(); // Close the file once writing is done
+		// 	}
+		// });
+		// auto flags = uvw::file_req::file_open_flags::CREAT | uvw::file_req::file_open_flags::RDWR;
 
 
-		openReq->open(m_metadata.info.name, flags, 0644);
+		// openReq->open(m_metadata.info.name, flags, 0644);
 
 		onBlockReceived(pieceIndex, begin / blockSize, piece_data);
 		//requestDownload(piece_index_to_download, begin / blockSize + 1);
@@ -239,6 +239,8 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 	{
 		spdlog::info("Received BTMessageType::Bitfield");
 		prettyPrintHex(message.payload);
+
+		utils::hex::parseBitfield(utils::hex::bytesToHexString(message.payload));
 		char data[] = "\x00\x00\x00\x01\x02";
 		m_tcp_handle->write(data, 5);
 		break;

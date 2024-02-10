@@ -262,6 +262,14 @@ namespace torrent {
 }
 
 namespace utils::hex {
+	std::string bytesToHexString(const std::vector<uint8_t>& bytes) {
+		std::stringstream ss;
+		ss << std::hex << std::setfill('0');
+		for (uint8_t byte : bytes) {
+			ss << std::setw(2) << static_cast<int>(byte);
+		}
+		return ss.str();
+	}
 
 	std::vector<unsigned char> HexToBytes(const std::string& hex) {
 		std::vector<unsigned char> bytes;
@@ -298,6 +306,48 @@ namespace utils::hex {
 			}
 		}
 		return e.str();
+	}
+	// Convert a hex character to its binary representation
+	std::string hexCharToBinary(char hex) {
+		switch (toupper(hex)) {
+			case '0': return "0000";
+			case '1': return "0001";
+			case '2': return "0010";
+			case '3': return "0011";
+			case '4': return "0100";
+			case '5': return "0101";
+			case '6': return "0110";
+			case '7': return "0111";
+			case '8': return "1000";
+			case '9': return "1001";
+			case 'A': return "1010";
+			case 'B': return "1011";
+			case 'C': return "1100";
+			case 'D': return "1101";
+			case 'E': return "1110";
+			case 'F': return "1111";
+			default: return "0000"; // Should not happen
+		}
+	}
+
+	// Parse a hex string to a binary string
+	std::string hexToBinary(const std::string& hex) {
+		std::string binary;
+		for (char c : hex) {
+			binary += hexCharToBinary(c);
+		}
+		return binary;
+	}
+
+	// Parse the bitfield message and print which pieces are available
+	void parseBitfield(const std::string& hexBitfield) {
+		std::string binaryBitfield = hexToBinary(hexBitfield);
+		
+		int pieceIndex = 0;
+		for (char bit : binaryBitfield.substr(0, binaryBitfield.length()- 2)) {
+			std::cout << "Piece " << pieceIndex << ": " << (bit == '1' ? "Available" : "Missing") << std::endl;
+			++pieceIndex;
+		}
 	}
 }
 
