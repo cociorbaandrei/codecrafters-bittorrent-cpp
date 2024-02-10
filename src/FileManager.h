@@ -9,6 +9,7 @@
 #include <indicators/progress_bar.hpp>
 #include <iomanip>
 #include <chrono>
+#include <unordered_set>
 struct Block {
 	std::vector<uint8_t> data;
 	bool received = false;

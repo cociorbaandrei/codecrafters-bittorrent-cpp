@@ -121,6 +121,8 @@ void FileManager::onBlockReceived(size_t pieceIndex, size_t begin, size_t blockI
 						memcpy(d.get() + off2, (char*)m_pieces[pieceIndex].blocks[i].data.data(), m_pieces[pieceIndex].blocks[i].data.size());
 						//off2 += m_pieces[pieceIndex].blocks[i].expectedSize;
 						off2 += m_pieces[pieceIndex].blocks[i].data.size();
+						//m_pieces[pieceIndex].blocks[i].data.clear();
+						//m_pieces[pieceIndex].blocks.clear();
 					}
 					req.write(std::move(d), off2, offset);
 
@@ -146,12 +148,15 @@ void FileManager::onBlockReceived(size_t pieceIndex, size_t begin, size_t blockI
         if(pieceIndex % 50 == 0){
 		    spdlog::info("Piece {0} block {1} downloaded to {2} {3}", pieceIndex, blockIndex, m_metadata.info.name, m_pieces.size());
               m_progress_bar->set_option(indicators::option::PostfixText{std::to_string( m_pieces[pieceIndex].downloadSpeedMBps())});
+
         }
+
 		//writePieceToFile(pieceIndex, piece);
 		if(pieceIndex == m_pieces.size() - 1){
-			m_tcp_handle->stop();
-			m_tcp_handle->close();
-            m_update_timer->close();
+			
+			//m_tcp_handle->stop();
+			//m_tcp_handle->close();
+           // m_update_timer->close();
 			return;
 		}
 		//m_tcp_handle->close();
@@ -173,12 +178,29 @@ void FileManager::onHave(size_t pieceIndex)
 
 void FileManager::update()
 {
-    if(m_pieces_to_download.empty())
+    if(m_pieces_to_download.empty()){
+		bool complete = true;
+		for(int i = 0; i < m_pieces.size();i++){
+				if(!m_pieces[i].isComplete()){
+			//		spdlog::info("Still missing piece: {0}", i);
+					m_pieces_to_download.emplace(i);
+					complete = false;
+					break;
+				}
+			}
+		if(complete){
+			spdlog::info("Download Complete");
+			m_tcp_handle->stop();
+			m_tcp_handle->close();
+            m_update_timer->close();
+
+		}
         return;
+	}
     int piece_index = *m_pieces_to_download.begin();
+	m_pieces_to_download.erase( *m_pieces_to_download.begin());
     if(m_pieces[piece_index].isComplete())
         return;
-
 	if (piece_index >= m_pieces.size())
 		return;
     if(m_pieces[piece_index].isComplete())

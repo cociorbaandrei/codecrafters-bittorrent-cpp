@@ -156,6 +156,13 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		spdlog::info("Received BTMessageType::Choke");
 		//handleChoke(message.payload);
 		break;
+	case BTMessageType::Interested:
+	{
+		spdlog::info("Received BTMessageType::ChInterestedoke");
+		char data[] = "\x00\x00\x00\x01\x01";
+		m_tcp_handle->write(data, 5);
+		break;
+	}
 	case BTMessageType::Have:
 	{
 		spdlog::info("Received BTMessageType::Have");
@@ -163,6 +170,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		auto pieceIndex = ntohl(*reinterpret_cast<const uint32_t*>(message.payload.data()));
 		spdlog::info("Have {0}", pieceIndex);
 		m_file_manager->onHave(pieceIndex);
+		//m_file_manager->startDownload();
 	//	if (pieces.size() == 0)
 	//		initializePieces(m_decoded_json);
 		//requestDownload(pieceIndex, 0);
