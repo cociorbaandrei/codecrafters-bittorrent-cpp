@@ -52,3 +52,4 @@ set(SOURCE_FILES src/Main.cpp src/lib/nlohmann/json.hpp src/utils.cpp src/FileMa
 add_executable(bittorrent ${SOURCE_FILES} "src/BTConnection.cpp" "src/BitTorrentMessage.cpp" "src/old_utils.cpp")
 target_link_libraries(bittorrent PRIVATE uv_a uvw::uvw fmt spdlog::spdlog indicators) # Link against libuv
 target_include_directories(bittorrent PUBLIC ${uvw_SOURCE_DIR}/src ${spdlog_SOURCE_DIR}/src) # Include uvw headers
+add_subdirectory(tests)
