@@ -13,4 +13,4 @@ add_executable(unit-tests test.cpp)
 target_link_libraries(unit-tests gmock gtest gtest_main torrett_lib)
 
 # Set the C++ standard for the test executable
-set_target_properties(unit-tests PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED YES)
+set_target_properties(unit-tests PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED YES)

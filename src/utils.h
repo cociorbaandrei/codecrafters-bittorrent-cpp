@@ -40,7 +40,7 @@ namespace utils::bencode {
 	std::string serialize_list(const BencodeListPtr& list);
 	std::string serialize_dict(const BencodeDictPtr& dict);
 	std::string serialize(const BencodeValue& value);
-
+	void pretty_print(const BencodeValue& value, int indent = 0);
 }
 
 namespace torrent {

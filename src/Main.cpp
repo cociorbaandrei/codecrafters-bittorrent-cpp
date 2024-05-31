@@ -31,6 +31,7 @@
 #include <unordered_map>
 #include "utils.h"
 #include "old_utils.h"
+#include <print>
 #pragma comment(lib, "ws2_32.lib")
 
 void print_torrent_info(const auto& metadata)
@@ -68,9 +69,7 @@ void dev_test() {
 
 	auto tcpClient = loop->resource<uvw::tcp_handle>();
 
-//	torrent::TrackerResponse peers_response;
-//	peers_response.peers.push_back({ "127.0.0.1", 25428 ,""});
-	tcpClient->connect(std::get<0>(peers_response.peers[0]), std::get<1>(peers_response.peers[0]));
+	tcpClient->connect(std::get<0>(peers_response.peers[2]), std::get<1>(peers_response.peers[2]));
 
 	tcpClient->on<uvw::connect_event>([&tcpClient, hash](const uvw::connect_event& connect_event, uvw::tcp_handle& tcp_handle) {
 		spdlog::debug("Connected to server.");  
@@ -121,7 +120,7 @@ void dev_test() {
 
 
 int main(int argc, char* argv[]) {
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
 	
 	// if (argc <= 2) {
 	// 	dev_test();
@@ -145,23 +144,18 @@ int main(int argc, char* argv[]) {
 	if (command == "download") {
 		int n = 0;
 		std::string file_name = argv[3];
-		 file_name ="../sample.torrent";
+		 file_name ="foundation.torrent";
 		std::ifstream torrent_file(file_name);
 		std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
 		auto dec = utils::bencode::parse(str);
-
+		utils::bencode::pretty_print(dec);
 		auto hash = torrent::info_hash(dec);
 		auto metadata = torrent::initialize(dec);
-		auto peers_response = torrent::discover_peers(metadata);
+		auto peers_response = torrent::discover_peers(metadata, true);
 		auto loop = uvw::loop::get_default();
 		auto tcpClient = loop->resource<uvw::tcp_handle>();
-
-		spdlog::info("Peers IPs:");
-		for(const auto [a,b,c] : peers_response.peers){
-			spdlog::info("{}:{}", a, b);
-		}
-
-		tcpClient->connect(std::get<0>(peers_response.peers[0]), std::get<1>(peers_response.peers[0]));
+			
+		tcpClient->connect(std::get<0>(peers_response.peers[1]), std::get<1>(peers_response.peers[1]));
 
 		tcpClient->on<uvw::connect_event>([&tcpClient, hash](const uvw::connect_event& connect_event, uvw::tcp_handle& tcp_handle) {
 			spdlog::debug("Connected to server.");
@@ -203,7 +197,7 @@ int main(int argc, char* argv[]) {
 
 		bittorent_session.piece_index_to_download = atoi("0");
 		bittorent_session.request_download_name = argv[2];
-				bittorent_session.request_download_name ="sample.txt";
+		bittorent_session.request_download_name ="sample.txt";
 		bittorent_session.downloadFullFile = true;
 		auto timer = loop->resource<uvw::timer_handle>();
 

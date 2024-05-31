@@ -23,7 +23,11 @@
 #include "spdlog/spdlog.h"
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
-
+#include <cstdio>
+#include <filesystem>
+#include <format>
+#include <ranges>
+#include <print>
 namespace utils::bencode {
 	BencodeInt decode_int(const std::string& encoded_value, size_t& index) {
 		size_t end_index = encoded_value.find('e', index);
@@ -131,7 +135,38 @@ namespace utils::bencode {
 			}, value);
 	}
 
+	void pretty_print(const BencodeValue& value, int indent) {
+        auto indent_str = std::string(indent, ' ');
 
+        std::visit(overloaded{
+            [&](BencodeInt arg) {
+                std::cout << indent_str << arg << std::endl;
+            },
+            [&](const BencodeStr& arg) {
+                std::cout << indent_str << '"' << arg << '"' << std::endl;
+            },
+            [&](const BencodeListPtr& arg) {
+                std::cout << indent_str << "List:" << std::endl;
+                for (const auto& item : *arg) {
+                    pretty_print(item, indent + 4);
+                }
+            },
+            [&](const BencodeDictPtr& arg) {
+                std::cout << indent_str << "Dict:" << std::endl;
+                for (const auto& [key, val] : *arg) {
+					if(key == "pieces"){
+						std::cout << indent_str << "  Key: " << key  << std::endl;
+						indent_str = std::string(indent+4, ' ');
+						std::cout << indent_str << "[...]" << std::endl;
+						indent_str = std::string(indent, ' ');
+						continue;
+					}
+                    std::cout << indent_str << "  Key: " << key << std::endl;
+                    pretty_print(val, indent + 4);
+                }
+            }
+        }, value);
+    }
 }
 
 
@@ -151,7 +186,7 @@ namespace torrent {
 			peer_id += std::to_string(dist6(dev));
 		}
 		//std::cout << "Peer Id: " << peer_id << std::endl;
-		//peer_id = "AAAAAAAAAAAAAAAAAAAAA";
+		peer_id = "-qB3020-132942340234";
 		MetaData metadata = {
 			.info_hash = info_hash(data),
 			.announce = announce,
@@ -201,9 +236,9 @@ namespace torrent {
 		{
 			int n = 0;
 			http::Request request{ url_buffer };
-			const auto response = request.send("GET");
+            const auto response = request.send("GET", "", {{"User-Agent", "qBittorrent v3.2"}});
 			std::string str_response = std::string{ response.body.begin(), response.body.end() };
-
+			spdlog::debug("Response: {0}", str_response);
 			auto parsed_respone = utils::bencode::parse(str_response);
 
 			auto peers = get_peers(parsed_respone, compact);
@@ -211,7 +246,6 @@ namespace torrent {
 			for (const auto& [ip, port, peer_id] : peers)
 			{
 				spdlog::debug("{0}:{1}", ip, port);
-				std::cout << ip << ":" << port << "\n";
 			}
 			return { 10, peers };
 		}
@@ -252,6 +286,7 @@ namespace torrent {
 			std::vector<std::tuple<std::string, std::uint32_t, std::string>> result;
 			auto dictionary = *std::get<utils::bencode::BencodeDictPtr>(object);
 			auto peers = std::get<utils::bencode::BencodeStr>(dictionary["peers"]);
+			std::println("{0}", peers);
 			std::cout << peers << "\n";
 			for (const auto& value : peers) {
 				const auto ip = value["ip"];
