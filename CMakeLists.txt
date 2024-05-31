@@ -47,9 +47,42 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(indicators)
 
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG        release-1.8.0
+)
 
-set(SOURCE_FILES src/Main.cpp src/lib/nlohmann/json.hpp src/utils.cpp src/FileManager.cpp)
-add_executable(bittorrent ${SOURCE_FILES} "src/BTConnection.cpp" "src/BitTorrentMessage.cpp" "src/old_utils.cpp")
-target_link_libraries(bittorrent PRIVATE uv_a uvw::uvw fmt spdlog::spdlog indicators) # Link against libuv
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+set(BUILD_GTEST ON CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(googletest)
+
+# Add the main library target
+add_library(torrett_lib
+    ${PROJECT_SOURCE_DIR}/src/utils.cpp
+    ${PROJECT_SOURCE_DIR}/src/FileManager.cpp
+    ${PROJECT_SOURCE_DIR}/src/BitTorrentMessage.cpp
+    ${PROJECT_SOURCE_DIR}/src/BTConnection.cpp
+    ${PROJECT_SOURCE_DIR}/src/old_utils.cpp
+    ${PROJECT_SOURCE_DIR}/src/lib/nlohmann/json.hpp
+)
+
+# Include directories for the test executable
+target_include_directories(torrett_lib PUBLIC
+    ${uvw_SOURCE_DIR}/src
+    ${spdlog_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/src
+)
+
+target_link_libraries(torrett_lib uv_a spdlog::spdlog indicators)
+
+
+set(SOURCE_FILES src/Main.cpp)
+add_executable(bittorrent ${SOURCE_FILES})
+target_link_libraries(bittorrent PRIVATE uv_a uvw::uvw fmt spdlog::spdlog indicators torrett_lib) # Link against libuv
 target_include_directories(bittorrent PUBLIC ${uvw_SOURCE_DIR}/src ${spdlog_SOURCE_DIR}/src) # Include uvw headers
+
+
 add_subdirectory(tests)

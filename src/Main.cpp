@@ -123,19 +123,29 @@ void dev_test() {
 int main(int argc, char* argv[]) {
     spdlog::set_level(spdlog::level::info);
 	
-	if (argc <= 2) {
-		dev_test();
-		return 0;
-	}
+	// if (argc <= 2) {
+	// 	dev_test();
+	// 	return 0;
+	// }
 
-	if (argc < 2) {
-		std::cerr << "Usage: " << argv[0] << " decode <encoded_value>" << std::endl;
-		return 1;
-	}
-	std::string command(argv[2]);
+	// if (argc < 2) {
+	// 	std::cerr << "Usage: " << argv[0] << " decode <encoded_value>" << std::endl;
+	// 	return 1;
+	// }
+
+	std::string command("");
+	command="download";
+	// std::cout << argv[0] << "\n";
+	// std::cout << argv[1] << "\n";
+	// std::cout << argv[2] << "\n";
+	// std::cout << argv[3] << "\n";
+	// std::cout << argv[4] << "\n";
+
+	std::cout << argc << "\n";
 	if (command == "download") {
 		int n = 0;
-		std::string file_name = argv[4];
+		std::string file_name = argv[3];
+		 file_name ="../sample.torrent";
 		std::ifstream torrent_file(file_name);
 		std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
 		auto dec = utils::bencode::parse(str);
@@ -145,6 +155,11 @@ int main(int argc, char* argv[]) {
 		auto peers_response = torrent::discover_peers(metadata);
 		auto loop = uvw::loop::get_default();
 		auto tcpClient = loop->resource<uvw::tcp_handle>();
+
+		spdlog::info("Peers IPs:");
+		for(const auto [a,b,c] : peers_response.peers){
+			spdlog::info("{}:{}", a, b);
+		}
 
 		tcpClient->connect(std::get<0>(peers_response.peers[0]), std::get<1>(peers_response.peers[0]));
 
@@ -187,7 +202,8 @@ int main(int argc, char* argv[]) {
 			});
 
 		bittorent_session.piece_index_to_download = atoi("0");
-		bittorent_session.request_download_name = argv[3];
+		bittorent_session.request_download_name = argv[2];
+				bittorent_session.request_download_name ="sample.txt";
 		bittorent_session.downloadFullFile = true;
 		auto timer = loop->resource<uvw::timer_handle>();
 

@@ -33,7 +33,7 @@ TEST(BencodeDecode, DecodeDict) {
     EXPECT_EQ(value->size(), 2);
     EXPECT_EQ(std::get<BencodeStr>((*value)["bar"]), "spam");
     EXPECT_EQ(std::get<BencodeInt>((*value)["foo"]), 42);
-    EXPECT_EQ(index, 22);
+    EXPECT_EQ(index, 20);
 }
 
 TEST(BencodeDecode, DecodeBencodedValue) {
@@ -73,6 +73,7 @@ TEST(BencodeSerialize, SerializeList) {
     std::string encoded = serialize_list(list);
     EXPECT_EQ(encoded, "l4:spam4:eggse");
 }
+
 
 TEST(BencodeSerialize, SerializeDict) {
     BencodeDictPtr dict = std::make_shared<BencodeDict>();

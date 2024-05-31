@@ -181,7 +181,7 @@ namespace torrent {
 
 		return hash;
 	}
-	TrackerResponse discover_peers(const MetaData& torrent) {
+	TrackerResponse discover_peers(const MetaData& torrent,bool compact) {
 		char url_buffer[2048];
 		//strncpy(url_buffer, torrent->announce.c_str(), torrent->announce.length());
 		//std::cout << urlencode(torrent->info_hash) << std::endl;
@@ -196,7 +196,7 @@ namespace torrent {
 			torrent.uploaded,
 			torrent.downloaded,
 			torrent.left);
-		//std::cout << "Request Url: " << url_buffer << "\n";
+		std::cout << "Request Url: " << url_buffer << "\n";
 		try
 		{
 			int n = 0;
@@ -206,7 +206,7 @@ namespace torrent {
 
 			auto parsed_respone = utils::bencode::parse(str_response);
 
-			auto peers = get_peers(parsed_respone, true);
+			auto peers = get_peers(parsed_respone, compact);
 			spdlog::debug("Peers IPs:");
 			for (const auto& [ip, port, peer_id] : peers)
 			{
@@ -248,15 +248,21 @@ namespace torrent {
 			}
 
 			return result;
+		}else {
+			std::vector<std::tuple<std::string, std::uint32_t, std::string>> result;
+			auto dictionary = *std::get<utils::bencode::BencodeDictPtr>(object);
+			auto peers = std::get<utils::bencode::BencodeStr>(dictionary["peers"]);
+			std::cout << peers << "\n";
+			for (const auto& value : peers) {
+				const auto ip = value["ip"];
+				const auto port = value["port"];
+				std::cout << value << "\n";
+				std::cout << ip << " " << port << "\n";
+				result.push_back({});
+			}
+			return result;
 		}
-
 		std::vector<std::tuple<std::string, std::uint32_t, std::string>> result;
-		//for (const auto& value : object) {
-		//	const auto ip = value["ip"].get <std::string>();
-		//	const auto port = value["port"].get <std::uint32_t>();
-		//	const auto peer_id = string_to_hex(value["peer id"].get <std::string>());
-		//	result.emplace_back(ip, port, peer_id);
-		//}
 		return result;
 	}
 }
