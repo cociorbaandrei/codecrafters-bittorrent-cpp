@@ -96,6 +96,8 @@ void FileManager::onBlockReceived(size_t pieceIndex, size_t begin, size_t blockI
 		return;
     
 	Block& block = piece.blocks[blockIndex];
+	if(blockIndex==0)
+		m_pieces[pieceIndex].startTime = std::chrono::high_resolution_clock::now();;
     if(block.received == true)
         return;
 	block.data = data;

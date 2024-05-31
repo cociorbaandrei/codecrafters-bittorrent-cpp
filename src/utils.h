@@ -44,11 +44,16 @@ namespace utils::bencode {
 }
 
 namespace torrent {
+	struct FileEntry {
+		std::string path;
+		int64_t length;
+	};
 	struct Info {
 		std::int64_t length;
 		std::string name;
 		std::int64_t piece_length;
 		std::string pieces;
+		std::vector<FileEntry> files;  // For multi-file torrents
 
 	};
 

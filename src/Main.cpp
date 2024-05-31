@@ -120,7 +120,7 @@ void dev_test() {
 
 
 int main(int argc, char* argv[]) {
-    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::info);
 	
 	// if (argc <= 2) {
 	// 	dev_test();
@@ -144,7 +144,7 @@ int main(int argc, char* argv[]) {
 	if (command == "download") {
 		int n = 0;
 		std::string file_name = argv[3];
-		 file_name ="foundation.torrent";
+        file_name ="/Users/s1ncocio/codecrafters-bittorrent-cpp/build/test.torrent";
 		std::ifstream torrent_file(file_name);
 		std::string str((std::istreambuf_iterator<char>(torrent_file)), std::istreambuf_iterator<char>());
 		auto dec = utils::bencode::parse(str);
@@ -155,7 +155,7 @@ int main(int argc, char* argv[]) {
 		auto loop = uvw::loop::get_default();
 		auto tcpClient = loop->resource<uvw::tcp_handle>();
 			
-		tcpClient->connect(std::get<0>(peers_response.peers[1]), std::get<1>(peers_response.peers[1]));
+		tcpClient->connect(std::get<0>(peers_response.peers[4]), std::get<1>(peers_response.peers[4]));
 
 		tcpClient->on<uvw::connect_event>([&tcpClient, hash](const uvw::connect_event& connect_event, uvw::tcp_handle& tcp_handle) {
 			spdlog::debug("Connected to server.");

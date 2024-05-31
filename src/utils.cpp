@@ -187,22 +187,41 @@ namespace torrent {
 		}
 		//std::cout << "Peer Id: " << peer_id << std::endl;
 		peer_id = "-qB3020-132942340234";
-		MetaData metadata = {
-			.info_hash = info_hash(data),
-			.announce = announce,
-			.info = {
-				.length = std::get<int64_t>(info["length"]),
-				.name = std::get<std::string>(info["name"]),
-				.piece_length = std::get<int64_t>(info["piece length"]),
-				.pieces = std::get<std::string>(info["pieces"]),
-			 },
-			.peer_id = peer_id,
-			.port = 25428,
-			.uploaded = 0,
-			.downloaded = 0,
-			.left = std::get<int64_t>(info["length"]),
-			.compact = 1
-		};
+  MetaData metadata = {
+            .info_hash = info_hash(data),
+            .announce = announce,
+            .info = {
+                .name = std::get<std::string>(info["name"]),
+                .piece_length = std::get<int64_t>(info["piece length"]),
+                .pieces = std::get<std::string>(info["pieces"]),
+            },
+            .peer_id = peer_id,
+            .port = 25428,
+            .uploaded = 0,
+            .downloaded = 0,
+            .left = 0,  // Will be calculated below
+            .compact = 1
+        };
+
+        // Handle single-file and multi-file torrents
+        if (info.contains("length")) {
+            metadata.info.length = std::get<int64_t>(info["length"]);
+            metadata.left = metadata.info.length;
+        } else if (info.contains("files")) {
+            auto files = std::get<utils::bencode::BencodeListPtr>(info["files"]);
+            for (const auto& file : *files) {
+                auto file_dict = *std::get<utils::bencode::BencodeDictPtr>(file);
+                int64_t length = std::get<int64_t>(file_dict["length"]);
+                auto path_list = std::get<utils::bencode::BencodeListPtr>(file_dict["path"]);
+                std::string path;
+                for (const auto& part : *path_list) {
+                    path += std::get<utils::bencode::BencodeStr>(part) + "/";
+                }
+                path.pop_back();  // Remove the trailing '/'
+                metadata.info.files.push_back({path, length});
+                metadata.left += length;
+            }
+        }
 		return metadata;
 	}
 
