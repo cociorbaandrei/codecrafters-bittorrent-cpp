@@ -201,8 +201,6 @@ void FileManager::update()
 	}
     int piece_index = *m_pieces_to_download.begin();
 	m_pieces_to_download.erase( *m_pieces_to_download.begin());
-    if(m_pieces[piece_index].isComplete())
-        return;
 	if (piece_index >= m_pieces.size())
 		return;
     if(m_pieces[piece_index].isComplete())
