@@ -53,6 +53,15 @@ FetchContent_Declare(
   GIT_TAG        release-1.8.0
 )
 
+# Fetch the cpp-httplib library
+FetchContent_Declare(
+  httplib
+  GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+  GIT_TAG v0.10.8  # Specify the version tag you want to use
+)
+
+FetchContent_MakeAvailable(httplib)
+
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 set(BUILD_GTEST ON CACHE BOOL "" FORCE)
@@ -76,7 +85,7 @@ target_include_directories(torrett_lib PUBLIC
     ${PROJECT_SOURCE_DIR}/src
 )
 
-target_link_libraries(torrett_lib uv_a spdlog::spdlog indicators)
+target_link_libraries(torrett_lib uv_a spdlog::spdlog indicators httplib)
 
 
 set(SOURCE_FILES src/Main.cpp)

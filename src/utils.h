@@ -44,6 +44,12 @@ namespace utils::bencode {
 }
 
 namespace torrent {
+	struct ParsedURL {
+		std::string scheme;
+		std::string host;
+		std::string path;
+		std::string port;
+	};
 	struct FileEntry {
 		std::string path;
 		int64_t length;
@@ -74,7 +80,7 @@ namespace torrent {
 		std::int32_t interval;
 		std::vector<std::tuple<std::string, std::uint32_t, std::string>>  peers;
 	};
-
+	ParsedURL parse_url(const std::string& url);
 	MetaData initialize(utils::bencode::BencodeValue data);
 	std::string info_hash(utils::bencode::BencodeValue data);
 	TrackerResponse discover_peers(const MetaData& torrent, bool compact = true);

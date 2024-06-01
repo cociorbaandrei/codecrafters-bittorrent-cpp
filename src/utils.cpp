@@ -28,8 +28,12 @@
 #include <format>
 #include <ranges>
 #include <print>
+
+#include "httplib.h"
+
 namespace utils::bencode {
 	BencodeInt decode_int(const std::string& encoded_value, size_t& index) {
+		spdlog::debug("");
 		size_t end_index = encoded_value.find('e', index);
 		if (end_index == std::string::npos) {
 			throw std::runtime_error("Invalid bencoded integer (no ending 'e').");
@@ -40,6 +44,7 @@ namespace utils::bencode {
 	}
 
 	BencodeStr decode_str(const std::string& encoded_value, size_t& index) {
+		spdlog::debug("");
 		size_t colon_index = encoded_value.find(':', index);
 		if (colon_index == std::string::npos) {
 			throw std::runtime_error("Invalid bencoded string (no colon found).");
@@ -50,6 +55,7 @@ namespace utils::bencode {
 	}
 
 	BencodeListPtr decode_list(const std::string& encoded_value, size_t& index) {
+		spdlog::debug("");
 		auto list = std::make_shared<BencodeList>();
 		index++; // Move past the 'l'
 		while (encoded_value[index] != 'e') {
@@ -60,6 +66,7 @@ namespace utils::bencode {
 	}
 
 	BencodeDictPtr decode_dict(const std::string& encoded_value, size_t& index) {
+		spdlog::debug("");
 		auto dict = std::make_shared<BencodeDict>();
 		index++; // Move past the 'd'
 		while (index < encoded_value.size() && encoded_value[index] != 'e') {
@@ -71,6 +78,7 @@ namespace utils::bencode {
 	}
 
 	BencodeValue decode_bencoded_v(const std::string& encoded_value, size_t& index) {
+		spdlog::debug("");
 		if (encoded_value[index] == 'i') {
 			return decode_int(encoded_value, index);
 		}
@@ -229,7 +237,7 @@ namespace torrent {
 	{
 		auto dictionary = *std::get<utils::bencode::BencodeDictPtr>(data);
 		auto info_ser = utils::bencode::serialize(dictionary["info"]);
-		SHA1 checksum;
+		class SHA1 checksum;
 		checksum.update(info_ser);
 		const std::string hash = checksum.final();
 
@@ -240,33 +248,88 @@ namespace torrent {
 		//strncpy(url_buffer, torrent->announce.c_str(), torrent->announce.length());
 		//std::cout << urlencode(torrent->info_hash) << std::endl;
 		std::string url_encoded_hash = utils::hex::urlencode(torrent.info_hash);
-		sprintf(
+		snprintf(
 			url_buffer,
-			"%s?info_hash=%s&peer_id=%s&port=%ld&uploaded=%ld&downloaded=%ld&left=%ld&compact=1",
+			2048,
+			"%s?info_hash=%s&peer_id=%s&port=%lld&uploaded=%lld&downloaded=%lld&left=%lld&compact=%d",
 			torrent.announce.c_str(),
 			url_encoded_hash.c_str(),
 			torrent.peer_id.c_str(),
 			torrent.port,
 			torrent.uploaded,
 			torrent.downloaded,
-			torrent.left);
+			torrent.left,
+			compact ? 1 : 0);
+
+		char request[2048];
+		snprintf(
+			request,
+			2048,
+			"/announce?info_hash=%s&peer_id=%s&port=%lld&uploaded=%lld&downloaded=%lld&left=%lld&compact=%d",
+			url_encoded_hash.c_str(),
+			torrent.peer_id.c_str(),
+			torrent.port,
+			torrent.uploaded,
+			torrent.downloaded,
+			torrent.left,
+			compact ? 1 : 0);
 		std::cout << "Request Url: " << url_buffer << "\n";
 		try
 		{
-			int n = 0;
-			http::Request request{ url_buffer };
-            const auto response = request.send("GET", "", {{"User-Agent", "qBittorrent v3.2"}});
-			std::string str_response = std::string{ response.body.begin(), response.body.end() };
-			spdlog::debug("Response: {0}", str_response);
-			auto parsed_respone = utils::bencode::parse(str_response);
+			/*
+				
+			*/
+			std::string url(url_buffer);
+			std::string host = url.substr(0, url.find("announce"));
+			std::cout << host << " " << request  << "\n";
 
-			auto peers = get_peers(parsed_respone, compact);
-			spdlog::debug("Peers IPs:");
-			for (const auto& [ip, port, peer_id] : peers)
-			{
-				spdlog::debug("{0}:{1}", ip, port);
+#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+			if(host.find("https") != std::string::npos){
+				host = host.substr(8, host.size() - 9);
+				std::cout << host << "\n";
+				httplib::SSLClient cli(host);
+				cli.enable_server_certificate_verification(true);
+				auto res = cli.Get(request);
+					
+				if (res && res->status == 200) {
+					std::cout << res->body << std::endl;
+
+					spdlog::debug("Response: {0}", res->body );
+					auto parsed_respone = utils::bencode::parse(res->body);
+					utils::bencode::pretty_print(parsed_respone);
+					auto peers = get_peers(parsed_respone, compact);
+					spdlog::debug("Peers IPs:");
+					for (const auto& [ip, port, peer_id] : peers)
+					{
+						spdlog::debug("{0}:{1}", ip, port);
+					}
+					return { 10, peers };
+				} else {
+					std::cerr << "Error: " << (res ? res->status : 0) << std::endl;
+					return { 10, {} };
+				}
+			} else {
+
+				int n = 0;
+				http::Request request{ url_buffer };
+				const auto response = request.send("GET", "", {{"User-Agent", "qBittorrent v3.2"}});
+				std::string str_response = std::string{ response.body.begin(), response.body.end() };
+				spdlog::debug("Response: {0}", str_response);
+				auto parsed_respone = utils::bencode::parse(str_response);
+				utils::bencode::pretty_print(parsed_respone);
+				auto peers = get_peers(parsed_respone, compact);
+				spdlog::debug("Peers IPs:");
+				for (const auto& [ip, port, peer_id] : peers)
+				{
+					spdlog::debug("{0}:{1}", ip, port);
+				}
+				return { 10, peers };
 			}
-			return { 10, peers };
+			
+#else
+			
+#endif
+
 		}
 		catch (const std::exception& e)
 		{
@@ -304,15 +367,18 @@ namespace torrent {
 		}else {
 			std::vector<std::tuple<std::string, std::uint32_t, std::string>> result;
 			auto dictionary = *std::get<utils::bencode::BencodeDictPtr>(object);
-			auto peers = std::get<utils::bencode::BencodeStr>(dictionary["peers"]);
-			std::println("{0}", peers);
-			std::cout << peers << "\n";
-			for (const auto& value : peers) {
-				const auto ip = value["ip"];
-				const auto port = value["port"];
-				std::cout << value << "\n";
-				std::cout << ip << " " << port << "\n";
-				result.push_back({});
+			auto peers = *std::get<utils::bencode::BencodeListPtr>(dictionary["peers"]);
+
+			for (const auto& peer : peers) {
+				auto peer_dict = *std::get<utils::bencode::BencodeDictPtr>(peer);
+				const auto ip =  std::get<utils::bencode::BencodeStr>(peer_dict["ip"]);
+				const auto port =  std::get<utils::bencode::BencodeInt>(peer_dict["port"]);
+
+				
+				if(ip.size() < 16){
+					std::cout << ip << " " << port  << "\n";
+					result.push_back({ip, port, ""});
+				}
 			}
 			return result;
 		}

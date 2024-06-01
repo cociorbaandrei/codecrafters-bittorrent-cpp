@@ -240,6 +240,7 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 
 		if (request_download_name != "") {
 			//initializePieces(m_decoded_json);
+		//	m_file_manager->initializePieces({});
 			m_file_manager->startDownload();
 			//requestDownload(piece_index_to_download, 0);
 		}

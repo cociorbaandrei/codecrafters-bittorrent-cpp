@@ -96,13 +96,14 @@ void FileManager::onBlockReceived(size_t pieceIndex, size_t begin, size_t blockI
 		return;
     
 	Block& block = piece.blocks[blockIndex];
-	if(blockIndex==0)
-		m_pieces[pieceIndex].startTime = std::chrono::high_resolution_clock::now();;
+
     if(block.received == true)
         return;
 	block.data = data;
 	block.received = true;
    
+	if(blockIndex==0)
+		m_pieces[pieceIndex].startTime = std::chrono::high_resolution_clock::now();;
 
     if (piece.isComplete()) {
         m_pieces_to_download.erase(pieceIndex);
@@ -138,18 +139,21 @@ void FileManager::onBlockReceived(size_t pieceIndex, size_t begin, size_t blockI
 		auto flags = uvw::file_req::file_open_flags::CREAT | uvw::file_req::file_open_flags::RDWR;
 
 		file->open(m_metadata.info.name, flags, 0644);
+	
 
-        m_pieces[pieceIndex].endTime = std::chrono::high_resolution_clock::now();;
 		//char data[] = "\x00\x00\x00\x01\x02";
 		//m_tcp_handle->write(data, 5);
         auto mapValue = [](double x, double a, double b, double c, double d) {
             return c + (x - a) * (d - c) / (b - a);
         };
         m_progress_bar->set_progress(mapValue(pieceIndex, 0, m_pieces.size(), 0 , 100));
-      
+              m_pieces[pieceIndex].endTime = std::chrono::high_resolution_clock::now();;
+
+		
         if(pieceIndex % 50 == 0){
-		    spdlog::info("Piece {0} block {1} downloaded to {2} {3}", pieceIndex, blockIndex, m_metadata.info.name, m_pieces.size());
-              m_progress_bar->set_option(indicators::option::PostfixText{std::to_string( m_pieces[pieceIndex].downloadSpeedMBps())});
+			m_progress_bar->set_option(indicators::option::PostfixText{std::to_string( m_pieces[pieceIndex].downloadSpeedMBps())});
+		   spdlog::info("Piece {0} block {1} downloaded to {2} {3}", pieceIndex, blockIndex, m_metadata.info.name, m_pieces.size());
+           
 
         }
 
@@ -174,7 +178,7 @@ void FileManager::onBlockReceived(size_t pieceIndex, size_t begin, size_t blockI
 void FileManager::onHave(size_t pieceIndex)
 {
     m_available_pieces[pieceIndex] = true;
-    if(m_pieces_to_download.find(pieceIndex) != m_pieces_to_download.end())
+    //if(m_pieces_to_download.find(pieceIndex) != m_pieces_to_download.end())
         m_pieces_to_download.emplace(pieceIndex);
 }
 
