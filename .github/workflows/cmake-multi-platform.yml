@@ -25,11 +25,10 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         build_type: [Release]
-        c_compiler: [clang]
         include:
           - os: ubuntu-latest
-            c_compiler: clang
-            cpp_compiler: clang++
+            c_compiler: /usr/bin/clang-16
+            cpp_compiler: /usr/bin/clang++-16
 
     steps:
     - uses: actions/checkout@v4
@@ -43,7 +42,6 @@ jobs:
         sudo ./llvm.sh 16
         sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-16 90
         
-
     - name: Set reusable strings
       # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
       id: strings

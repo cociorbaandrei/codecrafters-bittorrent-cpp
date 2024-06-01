@@ -25,10 +25,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <cstdio>
 #include <filesystem>
-#include <format>
 #include <ranges>
-#include <print>
-
 #include "httplib.h"
 
 namespace utils::bencode {
