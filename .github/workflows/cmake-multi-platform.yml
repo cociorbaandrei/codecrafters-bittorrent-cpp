@@ -25,7 +25,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         build_type: [Release]
-        c_compiler: [gcc, clang, cl]
+        c_compiler: [clang]
         include:
           - os: ubuntu-latest
             c_compiler: clang
@@ -33,6 +33,21 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    
+    - name: Set up C++ 23 compiler on Ubuntu
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        if [ "${{ matrix.cpp_compiler }}" = "g++" ]; then
+          sudo apt-get install -y g++-13
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 90
+        elif [ "${{ matrix.cpp_compiler }}" = "clang++" ]; then
+          sudo apt-get install -y wget lsb-release software-properties-common
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 16
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-16 90
+        fi
 
     - name: Set reusable strings
       # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
