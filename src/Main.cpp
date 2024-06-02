@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -33,6 +34,12 @@
 #include "old_utils.h"
 #include "IntervalMap.h"
 
+#include <map>
+#include <vector>
+#include <string>
+#include <iostream>
+
+
 #pragma comment(lib, "ws2_32.lib")
 
 void print_torrent_info(const auto& metadata)
@@ -53,10 +60,7 @@ void print_torrent_info(const auto& metadata)
 	}
 }
 
-#include <map>
-#include <vector>
-#include <string>
-#include <iostream>
+
 
 std::map<int, std::vector<std::pair<std::string, std::pair<int64_t, int64_t>>>> map_pieces_to_files(const auto& metadata) {
     std::map<int, std::vector<std::pair<std::string, std::pair<int64_t, int64_t>>>> piece_map;
@@ -96,6 +100,7 @@ void print_piece_map(const std::map<int, std::vector<std::pair<std::string, std:
         }
     }
 }
+
 int main(int argc, char* argv[]) {
     spdlog::set_level(spdlog::level::info);
 	    // Create a console logger
@@ -199,3 +204,40 @@ int main(int argc, char* argv[]) {
 
 	return 0;
 }
+
+
+/*
+
+#include "Boost.h"
+#include "HttpClient.h"
+
+net::awaitable<void> make_https_request() {
+    auto executor = co_await net::this_coro::executor;
+	auto client =  std::make_shared<HttpClient>();
+
+    try {
+        const auto&&[status, body] = co_await client->Get("http://www.google.com");
+        std::cout << "Status: " << status << "\n" << "Response: " << body << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+
+}
+
+int main() {
+    try {
+        net::io_context ioc;
+        // Run the asynchronous operation
+        net::co_spawn(ioc, make_https_request(), net::detached);
+
+        // Run the I/O service
+        ioc.run();
+    }
+    catch (std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+*/
