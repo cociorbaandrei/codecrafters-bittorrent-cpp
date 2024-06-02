@@ -237,7 +237,8 @@ void BTConnection::dispatchMessage(const BTMessage& message) {
 		//std::cout << "Received BTMessageType::Unchoke\n";
 		spdlog::info("Received BTMessageType::Unchoke");
 		std::string pieces;
-
+		char data[] = "\x00\x00\x00\x01\x02";
+		m_tcp_handle->write(data, 5);
 		if (request_download_name != "") {
 			//initializePieces(m_decoded_json);
 		//	m_file_manager->initializePieces({});

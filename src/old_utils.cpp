@@ -266,9 +266,10 @@ namespace ns {
 		//strncpy(url_buffer, torrent->announce.c_str(), torrent->announce.length());
 		//std::cout << urlencode(torrent->info_hash) << std::endl;
 		std::string url_encoded_hash = urlencode(torrent->info_hash);
-		sprintf(
+		snprintf(
 			url_buffer,
-			"%s?info_hash=%s&peer_id=%s&port=%ld&uploaded=%ld&downloaded=%ld&left=%ld&compact=1",
+			2048,
+			"%s?info_hash=%s&peer_id=%s&port=%lld&uploaded=%lld&downloaded=%lld&left=%lld&compact=1",
 			torrent->announce.c_str(),
 			url_encoded_hash.c_str(),
 			torrent->peer_id.c_str(),

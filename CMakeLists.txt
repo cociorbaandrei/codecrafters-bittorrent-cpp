@@ -93,5 +93,6 @@ add_executable(bittorrent ${SOURCE_FILES})
 target_link_libraries(bittorrent PRIVATE uv_a uvw::uvw fmt spdlog::spdlog indicators torrett_lib) # Link against libuv
 target_include_directories(bittorrent PUBLIC ${uvw_SOURCE_DIR}/src ${spdlog_SOURCE_DIR}/src) # Include uvw headers
 
-
+enable_testing()
 add_subdirectory(tests)
+
