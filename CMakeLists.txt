@@ -64,8 +64,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(httplib)
 
 set(TRY_BOOST_VERSION "1.85.0")
-set(BOOST_NOT_HEADER_ONLY_COMPONENTS_THAT_YOU_NEED "thread")
-set(BOOST_HEADER_ONLY_COMPONENTS_THAT_YOU_NEED "asio;beast")
+set(BOOST_NOT_HEADER_ONLY_COMPONENTS_THAT_YOU_NEED "thread;cobalt")
+set(BOOST_HEADER_ONLY_COMPONENTS_THAT_YOU_NEED "asio;beast;filesystem;cobalt")
 
 
 set(BOOST_INCLUDE_LIBRARIES
@@ -82,8 +82,7 @@ CPMAddPackage(
   OPTIONS "BOOST_SKIP_INSTALL_RULES OFF"
 )
 
-
-
+find_package(OpenSSL)
 
 # Define BOOST_INCLUDE_DIR
 set(BOOST_INCLUDE_DIR ${boost_SOURCE_DIR})
@@ -100,6 +99,8 @@ add_library(torrett_lib
     ${PROJECT_SOURCE_DIR}/src/BTConnection.cpp
     ${PROJECT_SOURCE_DIR}/src/old_utils.cpp
     ${PROJECT_SOURCE_DIR}/src/HttpClient.cpp
+    ${PROJECT_SOURCE_DIR}/src/FileReader.cpp
+    ${PROJECT_SOURCE_DIR}/src/TrackerService.cpp
     ${PROJECT_SOURCE_DIR}/src/lib/nlohmann/json.hpp
 )
 
@@ -110,7 +111,7 @@ target_include_directories(torrett_lib PUBLIC
     ${PROJECT_SOURCE_DIR}/src
 )
 
-target_link_libraries(torrett_lib uv_a spdlog::spdlog indicators httplib boost_beast boost_asio)
+target_link_libraries(torrett_lib uv_a spdlog::spdlog indicators httplib boost_beast boost_asio boost_filesystem  boost_cobalt) 
 
 set(SOURCE_FILES src/Main.cpp)
 add_executable(bittorrent ${SOURCE_FILES})
@@ -122,6 +123,9 @@ target_link_libraries(bittorrent
   spdlog::spdlog 
   indicators 
   torrett_lib
+  boost_filesystem
+  boost_cobalt
+  Boost::cobalt OpenSSL::SSL
 ) # Link against libuv
 target_include_directories(bittorrent PUBLIC ${uvw_SOURCE_DIR}/src ${spdlog_SOURCE_DIR}/src ${Boost_INCLUDE_DIRS}) # Include uvw headers
 

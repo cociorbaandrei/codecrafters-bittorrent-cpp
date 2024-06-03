@@ -6,7 +6,10 @@
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/use_awaitable.hpp>
+#include <boost/asio/posix/stream_descriptor.hpp>
+#include <boost/filesystem.hpp>
 #include <iostream>
+
 
 namespace beast = boost::beast;
 namespace http = beast::http;
