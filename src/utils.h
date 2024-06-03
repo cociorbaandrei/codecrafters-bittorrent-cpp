@@ -85,6 +85,7 @@ namespace torrent {
 	std::string info_hash(utils::bencode::BencodeValue data);
 	TrackerResponse discover_peers(const MetaData& torrent, bool compact = true);
 	std::vector<std::tuple<std::string, std::uint32_t, std::string>> get_peers(utils::bencode::BencodeValue object, bool compact = false);
+	std::vector<std::tuple<std::string, std::uint32_t>> get_peers_2(utils::bencode::BencodeValue object, bool compact = false);
 }
 
 namespace utils::hex {

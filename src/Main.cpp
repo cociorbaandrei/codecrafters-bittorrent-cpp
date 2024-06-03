@@ -247,7 +247,7 @@ net::awaitable<void> co_main(int argc, char** argv) {
 		auto metadata = torrent::initialize(dec);
     	print_piece_map(map_pieces_to_files(metadata));
 		auto trackerService = std::make_unique<TrackerService>(std::make_unique<HttpClient>());
-		auto peers = co_await trackerService->discoverPeers(metadata);
+		auto peers = co_await trackerService->discoverPeers(metadata, false);
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }

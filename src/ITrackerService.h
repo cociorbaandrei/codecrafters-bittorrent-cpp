@@ -9,5 +9,5 @@ namespace torrent{
 class ITrackerService {
 public:
     virtual ~ITrackerService() = default;
-    virtual net::awaitable<std::vector<std::tuple<std::string, std::uint32_t, std::string>>> discoverPeers(const torrent::MetaData& torrent, bool compact = true) = 0;
+    virtual net::awaitable<std::vector<std::tuple<std::string, std::uint32_t>>> discoverPeers(const torrent::MetaData& torrent, bool compact = true) = 0;
 };

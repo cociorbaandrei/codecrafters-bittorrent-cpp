@@ -11,7 +11,7 @@ public:
   TrackerService(std::unique_ptr<IHttpClient> httpClient)
       : m_httpClient(std::move(httpClient)) {}
   net::awaitable<
-      std::vector<std::tuple<std::string, std::uint32_t, std::string>>>
+      std::vector<std::tuple<std::string, std::uint32_t>>>
   discoverPeers(const torrent::MetaData &torrent, bool compact = true) {
     std::string url_encoded_hash = utils::hex::urlencode(torrent.info_hash);
     char url_buffer[2048];
@@ -24,9 +24,9 @@ public:
     const auto &&[status, body] = co_await m_httpClient->Get(url_buffer);
     auto parsed_respone = utils::bencode::parse(body);
     utils::bencode::pretty_print(parsed_respone);
-    auto peers = torrent::get_peers(parsed_respone, compact);
+    auto peers = torrent::get_peers_2(parsed_respone, compact);
     spdlog::info("Peers IPs:");
-    for (const auto &[ip, port, peer_id] : peers) {
+    for (const auto &[ip, port] : peers) {
       spdlog::info("{0}:{1}", ip, port);
     }
     co_return peers;

@@ -145,28 +145,35 @@ namespace utils::bencode {
 
         std::visit(overloaded{
             [&](BencodeInt arg) {
-                std::cout << indent_str << arg << std::endl;
+             //   std::cout << indent_str << arg << std::endl;
+				spdlog::info("{0}{1}", indent_str, arg);
             },
             [&](const BencodeStr& arg) {
-                std::cout << indent_str << '"' << arg << '"' << std::endl;
+            //    std::cout << indent_str << '"' << arg << '"' << std::endl;
+				spdlog::info("{0}\"{1}\"", indent_str, arg);
             },
             [&](const BencodeListPtr& arg) {
-                std::cout << indent_str << "List:" << std::endl;
+            //    std::cout << indent_str << "List:" << std::endl;
+				spdlog::info("{0}List:", indent_str);
                 for (const auto& item : *arg) {
                     pretty_print(item, indent + 4);
                 }
             },
             [&](const BencodeDictPtr& arg) {
-                std::cout << indent_str << "Dict:" << std::endl;
+                //std::cout << indent_str << "Dict:" << std::endl;
+				spdlog::info("{0}Dict:", indent_str);
                 for (const auto& [key, val] : *arg) {
 					if(key == "pieces"){
-						std::cout << indent_str << "  Key: " << key  << std::endl;
+						//std::cout << indent_str << "  Key: " << key  << std::endl;
+						spdlog::info("{0} Key: {1}", indent_str, key);
 						indent_str = std::string(indent+4, ' ');
-						std::cout << indent_str << "[...]" << std::endl;
+						//std::cout << indent_str << "[...]" << std::endl;
+						spdlog::info("{0}  [...]", indent_str);
 						indent_str = std::string(indent, ' ');
 						continue;
 					}
-                    std::cout << indent_str << "  Key: " << key << std::endl;
+                   // std::cout << indent_str << "  Key: " << key << std::endl;
+					spdlog::info("{0} Key: {1}", indent_str, key);
                     pretty_print(val, indent + 4);
                 }
             }
@@ -380,6 +387,53 @@ namespace torrent {
 			return result;
 		}
 		std::vector<std::tuple<std::string, std::uint32_t, std::string>> result;
+		return result;
+	}
+
+	std::vector<std::tuple<std::string, std::uint32_t>> get_peers_2(utils::bencode::BencodeValue object, bool compact) 
+	{
+		if (compact) {
+			auto dictionary = *std::get<utils::bencode::BencodeDictPtr>(object);
+			auto peers = std::get<utils::bencode::BencodeStr>(dictionary["peers"]);
+			std::vector<std::tuple<std::string, std::uint32_t>> result;
+
+			for (int i = 0; i < peers.length(); i += 6) {
+				std::string peer_ip = peers.substr(i, 4);
+				std::string peer_port = peers.substr(i + 4, 2);
+
+				std::uint8_t ip[4] = { 0 };
+				std::uint8_t port[2] = { 0 };
+
+				for (int j = 0; j < 4; j++)
+					ip[j] = static_cast<uint8_t>(peer_ip[j]);
+
+				for (int j = 0; j < 2; j++)
+					port[j] = static_cast<uint8_t>(peer_port[j]);
+
+				std::string ip_str = std::to_string(ip[0]) + "." + std::to_string(ip[1]) + "." + std::to_string(ip[2]) + "." + std::to_string(ip[3]);
+				std::uint32_t port_value = (port[0] << 8) | port[1];
+				result.emplace_back(ip_str, port_value);
+			}
+
+			return result;
+		}else {
+			std::vector<std::tuple<std::string, std::uint32_t>> result;
+			auto dictionary = *std::get<utils::bencode::BencodeDictPtr>(object);
+			auto peers = *std::get<utils::bencode::BencodeListPtr>(dictionary["peers"]);
+
+			for (const auto& peer : peers) {
+				auto peer_dict = *std::get<utils::bencode::BencodeDictPtr>(peer);
+				const auto ip =  std::get<utils::bencode::BencodeStr>(peer_dict["ip"]);
+				const auto port =  std::get<utils::bencode::BencodeInt>(peer_dict["port"]);
+
+				
+				if(1/*ip.size() < 16*/){
+					result.push_back({ip, port});
+				}
+			}
+			return result;
+		}
+		std::vector<std::tuple<std::string, std::uint32_t>> result;
 		return result;
 	}
 }

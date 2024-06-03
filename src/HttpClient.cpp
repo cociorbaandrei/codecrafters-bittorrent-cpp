@@ -1,4 +1,5 @@
 #include "HttpClient.h"
+#include "spdlog/spdlog.h"
 
 UrlComponents parseUrl(const std::string &url) {
   std::regex urlRegex(R"(^(https?)://([^/]+)(/.*)?$)");
@@ -24,8 +25,7 @@ net::awaitable<std::pair<std::size_t, std::string>> HttpClient::Get(const std::s
       using tcp_stream = typename beast::tcp_stream::rebind_executor<
           executor_with_default>::other;
       const auto &&[protocol, host, query] = parseUrl(url);
-      std::cout << host << "\n";
-      std::cout << query << "\n";
+      spdlog::info("protocol=\"{0}\" host=\"{1}\", querry=\"{2}\"", protocol, host, query);
       beast::flat_buffer buffer;
       http::response<http::dynamic_body> res;
       http::request<http::string_body> req{http::verb::get, query, 11};
