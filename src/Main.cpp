@@ -40,11 +40,14 @@
 #include "IntervalMap.h"
 */
 
+#include "BitTorrentMessage.h"
 #include "Boost.h"
 #include "FileReader.h"
 #include "HttpClient.h"
 #include "FileReader.h"
 #include "TrackerService.h"
+#include "boost/asio/detached.hpp"
+#include "boost/asio/read.hpp"
 #include "spdlog/spdlog.h"
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -230,6 +233,66 @@ void print_piece_map(const std::map<int, std::vector<std::pair<std::string, std:
 // 	return 0;
 // }
 
+awaitable<void> reader(tcp::socket socket) {
+    // let's do the handshake
+    std::string buffer;
+      std::size_t n = co_await boost::asio::async_read(socket, boost::asio::dynamic_buffer(buffer, 68),use_awaitable);
+    if (buffer[0] == 19 && std::string(buffer.begin() + 1, buffer.begin() + 20) == "BitTorrent protocol") {
+		// Successfully received a valid handshake
+		try {
+			std::vector<uint8_t> payload(buffer.begin() , buffer.begin() + 68);
+			BitTorrentMessage msg = BitTorrentMessage::deserialize(payload);
+			//spdlog::debug("Peer ID: {:xsp}", spdlog::to_hex(msg.peerId));  
+			std::cout << "Peer ID: ";
+			for (int i = 0; i < msg.peerId.size(); i++)
+			{
+				printf("%02x", msg.peerId[i]);
+			}
+			std::cout << "\n";
+		}
+		catch (const std::exception& e) {
+			std::cerr << "Error deserializing message: " << e.what() << std::endl;
+		}
+	}
+    spdlog::info("Handshake with {0}:{1} succesfull", socket.remote_endpoint().address().to_string(),socket.remote_endpoint().port());
+    try {
+        while (true) {
+            std::string read_msg;
+            std::size_t n = co_await boost::asio::async_read(socket,
+                boost::asio::dynamic_buffer(read_msg, 68),use_awaitable);
+            spdlog::info("Received from {0}:{1}", socket.remote_endpoint().address().to_string(),socket.remote_endpoint().port());
+            spdlog::info("data: {0}", read_msg);
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Read error: " << e.what() << std::endl;
+    }
+}
+
+awaitable<void> connect_to_server(const std::string& host, const std::string& service, std::string hash) {
+    auto executor = co_await boost::asio::this_coro::executor;
+
+    tcp::resolver resolver(executor);
+    auto endpoints = co_await resolver.async_resolve(host, service, use_awaitable);
+
+    tcp::socket socket(executor);
+
+    // Connect to IPv4 and IPv6
+    co_await boost::asio::async_connect(socket, endpoints, use_awaitable);
+
+    spdlog::debug("Connected to {0}:{1}", socket.remote_endpoint().address().to_string(),socket.remote_endpoint().port());
+
+	auto byte_repr = utils::hex::HexToBytes(hash);
+	std::array<uint8_t, 20> infoHash;
+	std::copy(std::begin(byte_repr), std::end(byte_repr), infoHash.begin());
+	BitTorrentMessage msg(infoHash);
+	auto data = msg.serialize();
+    co_await socket.async_write_some(boost::asio::buffer(data), use_awaitable);
+
+    // Let's do the handshake
+
+    net::co_spawn(executor, reader(std::move(socket)), net::detached);
+}
+
 
 net::awaitable<void> co_main(int argc, char** argv) {
 	spdlog::set_level(spdlog::level::info);
@@ -248,6 +311,11 @@ net::awaitable<void> co_main(int argc, char** argv) {
     	print_piece_map(map_pieces_to_files(metadata));
 		auto trackerService = std::make_unique<TrackerService>(std::make_unique<HttpClient>());
 		auto peers = co_await trackerService->discoverPeers(metadata, false);
+       
+        for(const auto&[ip, port] : peers){
+            co_await connect_to_server(ip, std::to_string(port), hash);
+        }
+
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }

@@ -7,9 +7,16 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/use_awaitable.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
+#include <boost/asio/experimental/awaitable_operators.hpp>
 #include <boost/filesystem.hpp>
 #include <iostream>
-
+using boost::asio::awaitable;
+using boost::asio::co_spawn;
+using boost::asio::detached;
+using boost::asio::io_context;
+using boost::asio::ip::tcp;
+using boost::asio::use_awaitable;
+using namespace boost::asio::experimental::awaitable_operators;
 
 namespace beast = boost::beast;
 namespace http = beast::http;
