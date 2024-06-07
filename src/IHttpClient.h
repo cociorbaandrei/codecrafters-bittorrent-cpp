@@ -1,7 +1,8 @@
 #pragma once
+#include "Boost.h"
+
 #include <string>
 #include <utility>
-#include "Boost.h"
 
 class IHttpClient {
 public:

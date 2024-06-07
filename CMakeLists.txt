@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 project(bittorrent-starter-cpp)
 set(CMAKE_CXX_STANDARD 23) # Enable the C++23 standard
-
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+include(CodeFormatting)
 Set(FETCHCONTENT_QUIET FALSE)
 find_package(libuv QUIET) # Attempt to find libuv
 # Download CPM.cmake                                                                                                                             

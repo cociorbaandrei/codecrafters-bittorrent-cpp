@@ -1,0 +1,25 @@
+---
+BasedOnStyle:  WebKit
+AlignAfterOpenBracket: AlwaysBreak
+AllowShortFunctionsOnASingleLine: None
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: false
+BinPackParameters: false
+ColumnLimit:     100
+FixNamespaceComments: true
+IncludeBlocks:   Regroup
+IncludeCategories:
+  - Regex:           '^".+\.(h|hh|hpp|hxx)"$'
+    Priority:        1
+  - Regex:           '^<.+\.(h|hh|hpp|hxx)>$'
+    Priority:        2
+  - Regex:           '^<[^.]+>$'
+    Priority:        3
+IncludeIsMainRegex: '(UT_)?.*$'
+Cpp11BracedListStyle: true
+MaxEmptyLinesToKeep: 2
+NamespaceIndentation: None
+SpaceAfterTemplateKeyword: false
+SpaceBeforeCpp11BracedList: false
+PenaltyReturnTypeOnItsOwnLine: 999
+...
